@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Goal, GoalWithStatus } from "../types";
+import { Goal, GoalWithStatus, DayOfWeek } from "../types";
 import {
   LocalStorageService,
   getTodayString,
@@ -37,7 +37,11 @@ export const useGoals = (selectedDate?: string) => {
 
   // Add a new goal
   const addGoal = useCallback(
-    async (title: string, description?: string): Promise<Goal | null> => {
+    async (
+      title: string,
+      description?: string,
+      daysOfWeek?: DayOfWeek[]
+    ): Promise<Goal | null> => {
       try {
         if (!title.trim()) {
           setError("Goal title is required");
@@ -46,7 +50,8 @@ export const useGoals = (selectedDate?: string) => {
 
         const newGoal = storageService.addGoal(
           title.trim(),
-          description?.trim()
+          description?.trim(),
+          daysOfWeek
         );
         loadGoals(); // Refresh the goals list
         setError(null);

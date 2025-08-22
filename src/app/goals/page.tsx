@@ -11,11 +11,12 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  TextField,
 } from "@mui/material";
 import { Today as TodayIcon } from "@mui/icons-material";
 import { useGoals } from "./hooks/useGoals";
 import { useDateNavigation } from "./hooks/useDateNavigation";
+import { GoalForm } from "./components/GoalForm";
+import { DayOfWeek, DAYS_OF_WEEK } from "./types";
 
 import { GoalsList } from "./components/GoalsList";
 import { DateNavigation } from "./components/DateNavigation";
@@ -46,13 +47,15 @@ const Goals = () => {
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
     goalId: string | null;
-    title: string;
-    description: string;
+    goalData: {
+      title: string;
+      description: string;
+      daysOfWeek: DayOfWeek[];
+    } | null;
   }>({
     open: false,
     goalId: null,
-    title: "",
-    description: "",
+    goalData: null,
   });
 
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -110,25 +113,51 @@ const Goals = () => {
     setEditDialog({
       open: true,
       goalId,
-      title: goal.title,
-      description: goal.description || "",
+      goalData: {
+        title: goal.title,
+        description: goal.description || "",
+        daysOfWeek: goal.daysOfWeek || [...DAYS_OF_WEEK],
+      },
     });
   };
 
-  const handleUpdateGoal = async () => {
+  const handleUpdateGoal = async (
+    title: string,
+    description?: string,
+    daysOfWeek?: DayOfWeek[]
+  ) => {
     if (!editDialog.goalId) return;
 
-    const result = await updateGoal(editDialog.goalId, {
-      title: editDialog.title,
-      description: editDialog.description || undefined,
-    });
+    try {
+      const result = await updateGoal(editDialog.goalId, {
+        title,
+        description,
+        daysOfWeek,
+      });
 
-    if (result) {
-      showSnackbar("Goal updated successfully!");
-      setEditDialog({ open: false, goalId: null, title: "", description: "" });
-    } else {
+      if (result) {
+        showSnackbar("Goal updated successfully!");
+        setEditDialog({
+          open: false,
+          goalId: null,
+          goalData: null,
+        });
+      } else {
+        showSnackbar("Failed to update goal", "error");
+      }
+    } catch (error) {
+      console.error("Error updating goal:", error);
       showSnackbar("Failed to update goal", "error");
+      throw error; // Re-throw to let GoalForm handle the error state
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditDialog({
+      open: false,
+      goalId: null,
+      goalData: null,
+    });
   };
 
   const handleDeleteGoal = (goalId: string) => {
@@ -196,8 +225,8 @@ const Goals = () => {
         loading={loading}
         error={error}
         onToggleGoal={handleToggleGoal}
-        onEditGoal={isToday ? handleEditGoal : undefined}
-        onDeleteGoal={isToday ? handleDeleteGoal : undefined}
+        onEditGoal={handleEditGoal}
+        onDeleteGoal={handleDeleteGoal}
         isReadOnly={!isToday}
         completionStats={completionStats}
       />
@@ -205,65 +234,20 @@ const Goals = () => {
       {/* Edit Goal Dialog */}
       <Dialog
         open={editDialog.open}
-        onClose={() =>
-          setEditDialog({
-            open: false,
-            goalId: null,
-            title: "",
-            description: "",
-          })
-        }
+        onClose={handleCancelEdit}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Edit Goal</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Goal Title"
-            value={editDialog.title}
-            onChange={(e) =>
-              setEditDialog((prev) => ({ ...prev, title: e.target.value }))
-            }
-            fullWidth
-            margin="normal"
-            required
-          />
-          <TextField
-            label="Description (optional)"
-            value={editDialog.description}
-            onChange={(e) =>
-              setEditDialog((prev) => ({
-                ...prev,
-                description: e.target.value,
-              }))
-            }
-            fullWidth
-            margin="normal"
-            multiline
-            rows={3}
+        <DialogContent sx={{ p: 3 }}>
+          <GoalForm
+            onSubmit={handleUpdateGoal}
+            onCancel={handleCancelEdit}
+            submitButtonText="Update Goal"
+            title="Edit Goal"
+            showCloseButton={true}
+            initialValues={editDialog.goalData || undefined}
           />
         </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() =>
-              setEditDialog({
-                open: false,
-                goalId: null,
-                title: "",
-                description: "",
-              })
-            }
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleUpdateGoal}
-            variant="contained"
-            disabled={!editDialog.title.trim()}
-          >
-            Update
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}

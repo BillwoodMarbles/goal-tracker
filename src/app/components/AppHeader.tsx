@@ -6,28 +6,22 @@ import {
   Toolbar,
   Typography,
   IconButton,
-  Box,
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  TextField,
-  Button,
   Snackbar,
   Alert,
 } from "@mui/material";
-import { Add as AddIcon, Close as CloseIcon } from "@mui/icons-material";
+import { Add as AddIcon } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import { LocalStorageService } from "../goals/services/localStorageService";
+import { GoalForm } from "../goals/components/GoalForm";
+import { DayOfWeek } from "../goals/types";
 
 export const AppHeader: React.FC = () => {
   const pathname = usePathname();
   const isGoalsPage = pathname === "/goals";
 
   const [addGoalDialog, setAddGoalDialog] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -51,22 +45,16 @@ export const AppHeader: React.FC = () => {
 
   const handleCloseDialog = () => {
     setAddGoalDialog(false);
-    setTitle("");
-    setDescription("");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!title.trim() || isSubmitting) return;
-
-    setIsSubmitting(true);
+  const handleSubmitGoal = async (
+    title: string,
+    description?: string,
+    daysOfWeek?: DayOfWeek[]
+  ) => {
     try {
       const storageService = LocalStorageService.getInstance();
-      await storageService.addGoal(
-        title.trim(),
-        description.trim() || undefined
-      );
+      await storageService.addGoal(title, description, daysOfWeek);
 
       showSnackbar("Goal added successfully!");
       handleCloseDialog();
@@ -78,8 +66,7 @@ export const AppHeader: React.FC = () => {
     } catch (error) {
       console.error("Error adding goal:", error);
       showSnackbar("Failed to add goal", "error");
-    } finally {
-      setIsSubmitting(false);
+      throw error; // Re-throw to let GoalForm handle the error state
     }
   };
 
@@ -115,59 +102,15 @@ export const AppHeader: React.FC = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            Add New Goal
-            <IconButton size="small" onClick={handleCloseDialog}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-
-        <form onSubmit={handleSubmit}>
-          <DialogContent>
-            <TextField
-              label="Goal Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              fullWidth
-              required
-              autoFocus
-              disabled={isSubmitting}
-              margin="normal"
-              placeholder="e.g., Exercise for 30 minutes"
-            />
-
-            <TextField
-              label="Description (optional)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              fullWidth
-              multiline
-              rows={3}
-              disabled={isSubmitting}
-              margin="normal"
-              placeholder="Add any additional details about this goal..."
-            />
-          </DialogContent>
-
-          <DialogActions sx={{ p: 3, pt: 1 }}>
-            <Button onClick={handleCloseDialog} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={!title.trim() || isSubmitting}
-            >
-              {isSubmitting ? "Adding..." : "Add Goal"}
-            </Button>
-          </DialogActions>
-        </form>
+        <DialogContent sx={{ p: 3 }}>
+          <GoalForm
+            onSubmit={handleSubmitGoal}
+            onCancel={handleCloseDialog}
+            submitButtonText="Add Goal"
+            title="Add New Goal"
+            showCloseButton={true}
+          />
+        </DialogContent>
       </Dialog>
 
       {/* Success/Error Snackbar */}

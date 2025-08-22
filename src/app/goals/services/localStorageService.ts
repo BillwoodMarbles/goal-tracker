@@ -1,4 +1,11 @@
-import { Goal, DailyGoals, GoalsData, STORAGE_KEYS } from "../types";
+import {
+  Goal,
+  DailyGoals,
+  GoalsData,
+  STORAGE_KEYS,
+  DayOfWeek,
+  DAYS_OF_WEEK,
+} from "../types";
 
 // Utility functions for date handling
 export const formatDate = (date: Date): string => {
@@ -7,6 +14,20 @@ export const formatDate = (date: Date): string => {
 
 export const getTodayString = (): string => {
   return formatDate(new Date());
+};
+
+export const getCurrentDayOfWeek = (): DayOfWeek => {
+  const dayIndex = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const dayMapping: DayOfWeek[] = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
+  return dayMapping[dayIndex];
 };
 
 // Local storage service for goals data
@@ -67,7 +88,11 @@ export class LocalStorageService {
   }
 
   // Goal management
-  addGoal(title: string, description?: string): Goal {
+  addGoal(
+    title: string,
+    description?: string,
+    daysOfWeek: DayOfWeek[] = [...DAYS_OF_WEEK]
+  ): Goal {
     const data = this.getGoalsData();
     const newGoal: Goal = {
       id: crypto.randomUUID(),
@@ -75,6 +100,7 @@ export class LocalStorageService {
       description,
       createdAt: new Date(),
       isActive: true,
+      daysOfWeek,
     };
 
     data.goals.push(newGoal);
@@ -85,6 +111,17 @@ export class LocalStorageService {
   getGoals(): Goal[] {
     const data = this.getGoalsData();
     return data.goals.filter((goal) => goal.isActive);
+  }
+
+  getGoalsForDay(dayOfWeek: DayOfWeek): Goal[] {
+    const data = this.getGoalsData();
+    return data.goals.filter(
+      (goal) => goal.isActive && goal.daysOfWeek.includes(dayOfWeek)
+    );
+  }
+
+  getGoalsForToday(): Goal[] {
+    return this.getGoalsForDay(getCurrentDayOfWeek());
   }
 
   updateGoal(id: string, updates: Partial<Goal>): Goal | null {
@@ -115,11 +152,25 @@ export class LocalStorageService {
     const data = this.getGoalsData();
 
     if (!data.dailyGoals[date]) {
-      // Initialize daily goals for the date with all active goals
-      const activeGoals = this.getGoals();
+      // Get day of week for the given date
+      const dateObj = new Date(date);
+      const dayIndex = dateObj.getDay();
+      const dayMapping: DayOfWeek[] = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ];
+      const dayOfWeek = dayMapping[dayIndex];
+
+      // Initialize daily goals for the date with goals active on that day
+      const goalsForDay = this.getGoalsForDay(dayOfWeek);
       data.dailyGoals[date] = {
         date,
-        goals: activeGoals.map((goal) => ({
+        goals: goalsForDay.map((goal) => ({
           goalId: goal.id,
           completed: false,
         })),
@@ -177,10 +228,25 @@ export class LocalStorageService {
 
   // Get goals with their completion status for a specific date
   getGoalsWithStatus(date: string = getTodayString()) {
-    const goals = this.getGoals();
+    // Get day of week for the given date
+    const dateObj = new Date(date);
+    const dayIndex = dateObj.getDay();
+    const dayMapping: DayOfWeek[] = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
+    const dayOfWeek = dayMapping[dayIndex];
+
+    // Get goals that should be active on this day of the week
+    const goalsForDay = this.getGoalsForDay(dayOfWeek);
     const dailyGoals = this.getDailyGoals(date);
 
-    return goals.map((goal) => {
+    return goalsForDay.map((goal) => {
       const status = dailyGoals.goals.find((gs) => gs.goalId === goal.id);
       return {
         ...goal,

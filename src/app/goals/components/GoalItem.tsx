@@ -136,7 +136,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
             )}
           </Box>
 
-          {(onEdit || onDelete) && !isReadOnly && (
+          {(onEdit || onDelete) && (
             <>
               <IconButton
                 size="small"
