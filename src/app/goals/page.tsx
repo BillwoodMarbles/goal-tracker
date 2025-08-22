@@ -12,7 +12,7 @@ import {
   DialogActions,
   Button,
 } from "@mui/material";
-import { Today as TodayIcon } from "@mui/icons-material";
+// import { Today as TodayIcon } from "@mui/icons-material";
 import { useGoals } from "./hooks/useGoals";
 import { useDateNavigation } from "./hooks/useDateNavigation";
 import { GoalForm } from "./components/GoalForm";
@@ -24,10 +24,10 @@ import { DateNavigation } from "./components/DateNavigation";
 const Goals = () => {
   const {
     selectedDate,
-    goToToday,
+    // goToToday,
     goToPrevDay,
     goToNextDay,
-    isToday,
+    // isToday,
     isFuture,
     getDisplayDate,
   } = useDateNavigation();
@@ -224,7 +224,7 @@ const Goals = () => {
 
   return (
     <Box>
-      {!isToday && (
+      {/* {!isToday && (
         <Box
           display="flex"
           justifyContent="space-between"
@@ -240,7 +240,7 @@ const Goals = () => {
             Today
           </Button>
         </Box>
-      )}
+      )} */}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>
