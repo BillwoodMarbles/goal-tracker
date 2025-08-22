@@ -4,11 +4,11 @@ frontend:
     preBuild:
       commands:
         - echo "Installing dependencies"
-        - npm ci
         - echo "Node version:"
         - node --version
         - echo "NPM version:"
         - npm --version
+        - npm ci --production=false
     build:
       commands:
         - echo "Building the application"
