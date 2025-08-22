@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 697.83 352.14">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+        stroke: #d6532b;
+        stroke-miterlimit: 10;
+        stroke-width: 22px;
+      }
+
+      .cls-2 {
+        fill: #3f2f23;
+        font-family: Nunito-Bold, Nunito;
+        font-size: 240px;
+        font-variation-settings: 'wght' 700;
+        font-weight: 700;
+      }
+
+      .cls-3 {
+        letter-spacing: -.03em;
+      }
+
+      .cls-4 {
+        letter-spacing: -.02em;
+      }
+
+      .cls-5 {
+        letter-spacing: -.03em;
+      }
+
+      .cls-6 {
+        fill: #d6532b;
+      }
+
+      .cls-7 {
+        fill: #008a23;
+      }
+    </style>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <circle class="cls-1" cx="102.37" cy="227.86" r="57.56"/>
+    <circle class="cls-1" cx="102.37" cy="227.86" r="91.37"/>
+    <circle class="cls-6" cx="102.37" cy="227.86" r="33.64"/>
+    <path class="cls-7" d="M90.26,113.59v113.97c0,10.71,23.71,12.24,23.71,0v-113.97c0-10.33.76-16.06,8.03-17.97s38.24-4.21,55.07-21.03c16.83-16.83,26.01-38.24,27.15-55.84S209.58-1.14,184.73.39c-24.86,1.53-39.01,6.12-56.6,20.27-17.59,14.15-25.77,36.23-26.95,51.1-1.13,14.25-3.81,8.87-4.57,4.86-2.02-10.69-11.32-28.81-23.56-37.99-12.24-9.18-34.8-18.36-53.16-17.97-18.36.38-17.97,4.21-14.53,21.03,3.44,16.83,14.92,31.36,24.86,40.54s34.04,16.83,42.45,16.83,17.59,4.21,17.59,14.53Z"/>
+    <text class="cls-2" transform="translate(252.4 285.42)"><tspan class="cls-5" x="0" y="0">r</tspan><tspan class="cls-3" x="87.36" y="0">oo</tspan><tspan class="cls-4" x="351.84" y="0">t</tspan></text>
+  </g>
+</svg>

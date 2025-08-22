@@ -16,6 +16,7 @@ import { usePathname } from "next/navigation";
 import { LocalStorageService } from "../goals/services/localStorageService";
 import { GoalForm } from "../goals/components/GoalForm";
 import { DayOfWeek } from "../goals/types";
+import Image from "next/image";
 
 export const AppHeader: React.FC = () => {
   const pathname = usePathname();
@@ -72,11 +73,9 @@ export const AppHeader: React.FC = () => {
 
   return (
     <>
-      <AppBar position="static" sx={{ bgcolor: "grey.900" }}>
+      <AppBar position="static" sx={{ bgcolor: "white" }}>
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Daily Goals Tracker
-          </Typography>
+          <Image src="/logo_full_wide.svg" alt="Root" width={100} height={50} />
 
           {isGoalsPage && (
             <IconButton
