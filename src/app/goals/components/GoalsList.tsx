@@ -16,9 +16,12 @@ import { CompletionChip } from "./CompletionChip";
 
 interface GoalsListProps {
   goals: GoalWithStatus[];
+  weeklyGoals?: GoalWithStatus[];
+  inactiveGoals?: GoalWithStatus[];
   loading: boolean;
   error: string | null;
   onToggleGoal: (goalId: string) => void;
+  onToggleGoalStep: (goalId: string, stepIndex: number) => void;
   onEditGoal?: (goalId: string) => void;
   onDeleteGoal?: (goalId: string) => void;
   isReadOnly?: boolean;
@@ -31,9 +34,12 @@ interface GoalsListProps {
 
 export const GoalsList: React.FC<GoalsListProps> = ({
   goals,
+  weeklyGoals = [],
+  inactiveGoals = [],
   loading,
   error,
   onToggleGoal,
+  onToggleGoalStep,
   onEditGoal,
   onDeleteGoal,
   isReadOnly = false,
@@ -125,13 +131,14 @@ export const GoalsList: React.FC<GoalsListProps> = ({
       {pendingGoals.length > 0 && (
         <Box mb={3}>
           <Typography variant="h6" gutterBottom>
-            Goals ({pendingGoals.length})
+            Daily Goals ({pendingGoals.length})
           </Typography>
           {pendingGoals.map((goal) => (
             <GoalItem
               key={goal.id}
               goal={goal}
               onToggle={onToggleGoal}
+              onToggleStep={onToggleGoalStep}
               onEdit={onEditGoal}
               onDelete={onDeleteGoal}
               isReadOnly={isReadOnly}
@@ -151,9 +158,66 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               key={goal.id}
               goal={goal}
               onToggle={onToggleGoal}
+              onToggleStep={onToggleGoalStep}
               onEdit={onEditGoal}
               onDelete={onDeleteGoal}
               isReadOnly={isReadOnly}
+            />
+          ))}
+        </Box>
+      )}
+
+      {/* Weekly Goals Section */}
+      {weeklyGoals.length > 0 && (
+        <Box sx={{ mt: 3 }}>
+          <Typography variant="h6" gutterBottom sx={{ color: "info.main" }}>
+            Weekly Goals ({weeklyGoals.length})
+          </Typography>
+          {weeklyGoals.map((goal) => (
+            <GoalItem
+              key={goal.id}
+              goal={goal}
+              onToggle={onToggleGoal}
+              onToggleStep={onToggleGoalStep}
+              onEdit={onEditGoal}
+              onDelete={onDeleteGoal}
+              isReadOnly={isReadOnly}
+            />
+          ))}
+        </Box>
+      )}
+
+      {/* Inactive Goals Section */}
+      {inactiveGoals.length > 0 && (
+        <Box sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: "divider" }}>
+          <Typography
+            variant="h6"
+            gutterBottom
+            sx={{
+              color: "text.secondary",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
+            Other Goals
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mb: 2, fontStyle: "italic" }}
+          >
+            These goals are not scheduled for today
+          </Typography>
+          {inactiveGoals.map((goal) => (
+            <GoalItem
+              key={goal.id}
+              goal={goal}
+              onToggle={() => {}} // No-op for inactive goals
+              onToggleStep={() => {}} // No-op for inactive goals
+              onEdit={onEditGoal}
+              onDelete={onDeleteGoal}
+              isReadOnly={true}
             />
           ))}
         </Box>

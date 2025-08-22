@@ -15,7 +15,7 @@ import { Add as AddIcon } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import { LocalStorageService } from "../goals/services/localStorageService";
 import { GoalForm } from "../goals/components/GoalForm";
-import { DayOfWeek } from "../goals/types";
+import { DayOfWeek, GoalType } from "../goals/types";
 import Image from "next/image";
 
 export const AppHeader: React.FC = () => {
@@ -51,11 +51,21 @@ export const AppHeader: React.FC = () => {
   const handleSubmitGoal = async (
     title: string,
     description?: string,
-    daysOfWeek?: DayOfWeek[]
+    daysOfWeek?: DayOfWeek[],
+    isMultiStep?: boolean,
+    totalSteps?: number,
+    goalType?: GoalType
   ) => {
     try {
       const storageService = LocalStorageService.getInstance();
-      await storageService.addGoal(title, description, daysOfWeek);
+      await storageService.addGoal(
+        title,
+        description,
+        daysOfWeek,
+        isMultiStep,
+        totalSteps,
+        goalType
+      );
 
       showSnackbar("Goal added successfully!");
       handleCloseDialog();

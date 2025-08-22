@@ -16,7 +16,7 @@ import { Today as TodayIcon } from "@mui/icons-material";
 import { useGoals } from "./hooks/useGoals";
 import { useDateNavigation } from "./hooks/useDateNavigation";
 import { GoalForm } from "./components/GoalForm";
-import { DayOfWeek, DAYS_OF_WEEK } from "./types";
+import { DayOfWeek, DAYS_OF_WEEK, GoalType } from "./types";
 
 import { GoalsList } from "./components/GoalsList";
 import { DateNavigation } from "./components/DateNavigation";
@@ -34,9 +34,12 @@ const Goals = () => {
 
   const {
     goals,
+    weeklyGoals,
+    inactiveGoals,
     loading,
     error,
     toggleGoal,
+    toggleGoalStep,
     updateGoal,
     deleteGoal,
     getStats,
@@ -51,6 +54,9 @@ const Goals = () => {
       title: string;
       description: string;
       daysOfWeek: DayOfWeek[];
+      isMultiStep: boolean;
+      totalSteps: number;
+      goalType: GoalType;
     } | null;
   }>({
     open: false,
@@ -98,7 +104,10 @@ const Goals = () => {
   }, [refresh]);
 
   const handleToggleGoal = async (goalId: string) => {
-    const goal = goals.find((g) => g.id === goalId);
+    // Search through both daily and weekly goals
+    const goal =
+      goals.find((g) => g.id === goalId) ||
+      weeklyGoals.find((g) => g.id === goalId);
     if (!goal) return;
 
     const newStatus = await toggleGoal(goalId);
@@ -106,8 +115,22 @@ const Goals = () => {
     showSnackbar(`"${goal.title}" ${statusText}!`);
   };
 
+  const handleToggleGoalStep = async (goalId: string, stepIndex: number) => {
+    // Search through both daily and weekly goals
+    const goal =
+      goals.find((g) => g.id === goalId) ||
+      weeklyGoals.find((g) => g.id === goalId);
+    if (!goal) return;
+
+    await toggleGoalStep(goalId, stepIndex);
+    // No snackbar for individual steps to avoid spam
+  };
+
   const handleEditGoal = (goalId: string) => {
-    const goal = goals.find((g) => g.id === goalId);
+    // Search through both daily and weekly goals
+    const goal =
+      goals.find((g) => g.id === goalId) ||
+      weeklyGoals.find((g) => g.id === goalId);
     if (!goal) return;
 
     setEditDialog({
@@ -117,6 +140,9 @@ const Goals = () => {
         title: goal.title,
         description: goal.description || "",
         daysOfWeek: goal.daysOfWeek || [...DAYS_OF_WEEK],
+        isMultiStep: goal.isMultiStep || false,
+        totalSteps: goal.totalSteps || 1,
+        goalType: goal.goalType || GoalType.DAILY,
       },
     });
   };
@@ -124,7 +150,10 @@ const Goals = () => {
   const handleUpdateGoal = async (
     title: string,
     description?: string,
-    daysOfWeek?: DayOfWeek[]
+    daysOfWeek?: DayOfWeek[],
+    isMultiStep?: boolean,
+    totalSteps?: number,
+    goalType?: GoalType
   ) => {
     if (!editDialog.goalId) return;
 
@@ -133,6 +162,9 @@ const Goals = () => {
         title,
         description,
         daysOfWeek,
+        isMultiStep,
+        totalSteps,
+        goalType,
       });
 
       if (result) {
@@ -161,7 +193,10 @@ const Goals = () => {
   };
 
   const handleDeleteGoal = (goalId: string) => {
-    const goal = goals.find((g) => g.id === goalId);
+    // Search through both daily and weekly goals
+    const goal =
+      goals.find((g) => g.id === goalId) ||
+      weeklyGoals.find((g) => g.id === goalId);
     if (!goal) return;
 
     setDeleteDialog({
@@ -222,12 +257,15 @@ const Goals = () => {
 
       <GoalsList
         goals={goals}
+        weeklyGoals={weeklyGoals}
+        inactiveGoals={inactiveGoals}
         loading={loading}
         error={error}
         onToggleGoal={handleToggleGoal}
+        onToggleGoalStep={handleToggleGoalStep}
         onEditGoal={handleEditGoal}
         onDeleteGoal={handleDeleteGoal}
-        isReadOnly={!isToday}
+        isReadOnly={isFuture}
         completionStats={completionStats}
       />
 

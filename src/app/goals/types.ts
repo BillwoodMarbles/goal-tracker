@@ -1,12 +1,20 @@
 // Goal tracking data models
 
+export enum GoalType {
+  DAILY = "daily",
+  WEEKLY = "weekly",
+}
+
 export interface Goal {
   id: string;
   title: string;
   description?: string;
   createdAt: Date;
   isActive: boolean;
+  goalType: GoalType; // Default to DAILY
   daysOfWeek: DayOfWeek[];
+  isMultiStep: boolean;
+  totalSteps: number; // Default 1 for single-step goals
 }
 
 export type DayOfWeek =
@@ -48,6 +56,8 @@ export interface DailyGoalStatus {
   goalId: string;
   completed: boolean;
   completedAt?: Date;
+  completedSteps: number; // Number of steps completed (0 to totalSteps)
+  stepCompletions: (Date | undefined)[]; // Array of completion times for each step (undefined = incomplete)
 }
 
 export interface DailyGoals {
@@ -56,15 +66,24 @@ export interface DailyGoals {
   lastUpdated: Date;
 }
 
+export interface WeeklyGoals {
+  weekStart: string; // YYYY-MM-DD format (Sunday)
+  goals: DailyGoalStatus[]; // Reusing DailyGoalStatus for weekly goals
+  lastUpdated: Date;
+}
+
 export interface GoalsData {
   goals: Goal[];
   dailyGoals: Record<string, DailyGoals>; // key is date string
+  weeklyGoals?: Record<string, WeeklyGoals>; // key is week start date string
 }
 
 // Utility types
 export type GoalWithStatus = Goal & {
   completed: boolean;
   completedAt?: Date;
+  completedSteps: number;
+  stepCompletions: (Date | undefined)[];
 };
 
 // Local storage keys

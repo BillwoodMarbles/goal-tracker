@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Goal, GoalWithStatus, DayOfWeek } from "../types";
+import { Goal, GoalWithStatus, DayOfWeek, GoalType } from "../types";
 import {
   LocalStorageService,
   getTodayString,
@@ -9,6 +9,8 @@ import {
 
 export const useGoals = (selectedDate?: string) => {
   const [goals, setGoals] = useState<GoalWithStatus[]>([]);
+  const [weeklyGoals, setWeeklyGoals] = useState<GoalWithStatus[]>([]);
+  const [inactiveGoals, setInactiveGoals] = useState<GoalWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +22,13 @@ export const useGoals = (selectedDate?: string) => {
     try {
       setLoading(true);
       const goalsWithStatus = storageService.getGoalsWithStatus(currentDate);
+      const weeklyGoalsWithStatus =
+        storageService.getWeeklyGoalsForDate(currentDate);
+      const inactiveGoalsWithStatus =
+        storageService.getInactiveGoalsForDate(currentDate);
       setGoals(goalsWithStatus);
+      setWeeklyGoals(weeklyGoalsWithStatus);
+      setInactiveGoals(inactiveGoalsWithStatus);
       setError(null);
     } catch (err) {
       setError("Failed to load goals");
@@ -40,7 +48,10 @@ export const useGoals = (selectedDate?: string) => {
     async (
       title: string,
       description?: string,
-      daysOfWeek?: DayOfWeek[]
+      daysOfWeek?: DayOfWeek[],
+      isMultiStep?: boolean,
+      totalSteps?: number,
+      goalType?: GoalType
     ): Promise<Goal | null> => {
       try {
         if (!title.trim()) {
@@ -51,7 +62,10 @@ export const useGoals = (selectedDate?: string) => {
         const newGoal = storageService.addGoal(
           title.trim(),
           description?.trim(),
-          daysOfWeek
+          daysOfWeek,
+          isMultiStep,
+          totalSteps,
+          goalType
         );
         loadGoals(); // Refresh the goals list
         setError(null);
@@ -69,16 +83,62 @@ export const useGoals = (selectedDate?: string) => {
   const toggleGoal = useCallback(
     async (goalId: string): Promise<boolean> => {
       try {
-        const newCompletionStatus = storageService.toggleGoalCompletion(
-          goalId,
-          currentDate
-        );
-        loadGoals(); // Refresh the goals list
-        setError(null);
-        return newCompletionStatus;
+        // Check if it's a weekly goal
+        const goal = storageService.getGoals().find((g) => g.id === goalId);
+        if (goal?.goalType === GoalType.WEEKLY) {
+          const newCompletionStatus = storageService.toggleWeeklyGoal(
+            goalId,
+            currentDate
+          );
+          loadGoals(); // Refresh the goals list
+          setError(null);
+          return newCompletionStatus;
+        } else {
+          const newCompletionStatus = storageService.toggleGoalCompletion(
+            goalId,
+            currentDate
+          );
+          loadGoals(); // Refresh the goals list
+          setError(null);
+          return newCompletionStatus;
+        }
       } catch (err) {
         setError("Failed to toggle goal completion");
         console.error("Error toggling goal:", err);
+        return false;
+      }
+    },
+    [storageService, currentDate, loadGoals]
+  );
+
+  // Toggle individual step for multi-step goals
+  const toggleGoalStep = useCallback(
+    async (goalId: string, stepIndex: number): Promise<boolean> => {
+      try {
+        // Check if it's a weekly goal
+        const goal = storageService.getGoals().find((g) => g.id === goalId);
+        if (goal?.goalType === GoalType.WEEKLY) {
+          const newStepStatus = storageService.toggleWeeklyGoalStep(
+            goalId,
+            stepIndex,
+            currentDate
+          );
+          loadGoals(); // Refresh the goals list
+          setError(null);
+          return newStepStatus;
+        } else {
+          const newStepStatus = storageService.toggleGoalStep(
+            goalId,
+            stepIndex,
+            currentDate
+          );
+          loadGoals(); // Refresh the goals list
+          setError(null);
+          return newStepStatus;
+        }
+      } catch (err) {
+        setError("Failed to toggle goal step");
+        console.error("Error toggling goal step:", err);
         return false;
       }
     },
@@ -144,10 +204,13 @@ export const useGoals = (selectedDate?: string) => {
 
   return {
     goals,
+    weeklyGoals,
+    inactiveGoals,
     loading,
     error,
     addGoal,
     toggleGoal,
+    toggleGoalStep,
     updateGoal,
     deleteGoal,
     getStats,

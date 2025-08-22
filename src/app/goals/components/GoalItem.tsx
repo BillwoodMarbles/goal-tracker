@@ -17,12 +17,14 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   CheckCircle as CheckCircleIcon,
+  CheckCircleOutline,
 } from "@mui/icons-material";
 import { GoalWithStatus } from "../types";
 
 interface GoalItemProps {
   goal: GoalWithStatus;
   onToggle: (goalId: string) => void;
+  onToggleStep: (goalId: string, stepIndex: number) => void;
   onEdit?: (goalId: string) => void;
   onDelete?: (goalId: string) => void;
   isReadOnly?: boolean;
@@ -31,6 +33,7 @@ interface GoalItemProps {
 export const GoalItem: React.FC<GoalItemProps> = ({
   goal,
   onToggle,
+  onToggleStep,
   onEdit,
   onDelete,
   isReadOnly = false,
@@ -57,6 +60,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
 
   const handleToggle = () => {
     if (!isReadOnly) {
+      console.log("toggle goal", goal.id);
       onToggle(goal.id);
     }
   };
@@ -74,70 +78,138 @@ export const GoalItem: React.FC<GoalItemProps> = ({
     <Card
       sx={{
         mb: 2,
-        opacity: goal.completed ? 0.8 : 1,
+        opacity: goal.completed ? 0.8 : isReadOnly ? 0.6 : 1,
+        backgroundColor: isReadOnly ? "grey.50" : "background.paper",
         transition: "all 0.2s ease-in-out",
         "&:hover": {
-          boxShadow: 2,
+          boxShadow: isReadOnly ? 1 : 2,
         },
       }}
     >
       <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        <Box display="flex" alignItems="flex-start" gap={2}>
-          <Checkbox
-            checked={goal.completed}
-            onChange={handleToggle}
-            disabled={isReadOnly}
-            icon={<CheckCircleIcon />}
-            checkedIcon={<CheckCircleIcon />}
-            sx={{
-              color: "primary.main",
-              "&.Mui-checked": {
-                color: "success.main",
-              },
-              mt: -0.5,
-            }}
-          />
-
-          <Box flex={1} minWidth={0}>
-            <Typography
-              variant="h6"
-              sx={{
-                textDecoration: goal.completed ? "line-through" : "none",
-                color: goal.completed ? "text.secondary" : "text.primary",
-                fontWeight: goal.completed ? 400 : 500,
-                fontSize: "1.1rem",
-                mb: goal.description ? 0.5 : 0,
-              }}
-            >
-              {goal.title}
-            </Typography>
-
-            {goal.description && (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{
-                  textDecoration: goal.completed ? "line-through" : "none",
-                  mb: 1,
-                }}
+        <Box
+          display="flex"
+          flexDirection={"row"}
+          justifyContent={"space-between"}
+          gap={2}
+        >
+          <Box
+            display="flex"
+            alignItems="flex-start"
+            flexGrow={1}
+            gap={1}
+            flexDirection={"column"}
+          >
+            <Box flex={1} minWidth={0}>
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={1}
+                mb={goal.description ? 0.5 : 0}
               >
-                {goal.description}
-              </Typography>
-            )}
+                <Typography
+                  variant="h6"
+                  sx={{
+                    textDecoration: goal.completed ? "line-through" : "none",
+                    color: goal.completed ? "text.secondary" : "text.primary",
+                    fontWeight: goal.completed ? 400 : 500,
+                    fontSize: "1.1rem",
+                  }}
+                >
+                  {goal.title}
+                </Typography>
 
-            {goal.completed && goal.completedAt && (
-              <Chip
-                label={`Completed at ${formatCompletedTime(goal.completedAt)}`}
-                size="small"
-                color="success"
-                variant="outlined"
-                sx={{ mt: 0.5 }}
+                {goal.isMultiStep && goal.totalSteps > 1 && (
+                  <Chip
+                    label={`${goal.completedSteps}/${goal.totalSteps}`}
+                    size="small"
+                    color={goal.completed ? "success" : "default"}
+                    variant="outlined"
+                    sx={{ height: 20, fontSize: "0.75rem" }}
+                  />
+                )}
+
+                {goal.completed && goal.completedAt && (
+                  <Chip
+                    label={`Completed at ${formatCompletedTime(
+                      goal.completedAt
+                    )}`}
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
+
+              {goal.description && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    textDecoration: goal.completed ? "line-through" : "none",
+                    mb: 1,
+                  }}
+                >
+                  {goal.description}
+                </Typography>
+              )}
+            </Box>
+
+            {/* Single step goal - show one checkbox */}
+            {!goal.isMultiStep || goal.totalSteps === 1 ? (
+              <Checkbox
+                checked={goal.completed}
+                onChange={handleToggle}
+                disabled={isReadOnly}
+                icon={<CheckCircleIcon />}
+                size="large"
+                checkedIcon={<CheckCircleIcon />}
+                sx={{
+                  color: "primary.main",
+                  "&.Mui-checked": {
+                    color: "success.main",
+                  },
+                  mt: -0.5,
+                  p: 0.25,
+                }}
               />
+            ) : (
+              /* Multi-step goal - show multiple checkboxes */
+              <Box
+                display="flex"
+                flexDirection="row"
+                width={"100%"}
+                gap={0.15}
+                sx={{ mt: -0.5 }}
+              >
+                {Array.from({ length: goal.totalSteps }, (_, index) => {
+                  const isStepCompleted =
+                    goal.stepCompletions && goal.stepCompletions[index];
+                  return (
+                    <Checkbox
+                      key={index}
+                      checked={!!isStepCompleted}
+                      onChange={() => onToggleStep(goal.id, index)}
+                      disabled={isReadOnly}
+                      icon={<CheckCircleOutline />}
+                      checkedIcon={<CheckCircleIcon />}
+                      size={goal.totalSteps > 5 ? "medium" : "large"}
+                      sx={{
+                        color: "primary.main",
+                        "&.Mui-checked": {
+                          color: "success.main",
+                        },
+                        p: 0.25,
+                      }}
+                    />
+                  );
+                })}
+              </Box>
             )}
           </Box>
 
           {(onEdit || onDelete) && (
-            <>
+            <Box>
               <IconButton
                 size="small"
                 onClick={handleMenuOpen}
@@ -172,7 +244,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                   </MenuItem>
                 )}
               </Menu>
-            </>
+            </Box>
           )}
         </Box>
       </CardContent>
