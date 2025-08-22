@@ -74,12 +74,12 @@ export const AppHeader: React.FC = () => {
   return (
     <>
       <AppBar position="static" sx={{ bgcolor: "white" }}>
-        <Toolbar>
+        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
           <Image src="/logo_full_wide.svg" alt="Root" width={100} height={50} />
 
           {isGoalsPage && (
             <IconButton
-              color="inherit"
+              color="primary"
               onClick={handleOpenDialog}
               aria-label="add goal"
               sx={{
