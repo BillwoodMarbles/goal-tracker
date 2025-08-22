@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import {
   formatDate,
   getTodayString,
-  getCurrentDayOfWeek,
+  // getCurrentDayOfWeek,
 } from "../services/localStorageService";
 
 export const useDateNavigation = () => {
