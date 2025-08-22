@@ -60,7 +60,6 @@ export const GoalItem: React.FC<GoalItemProps> = ({
 
   const handleToggle = () => {
     if (!isReadOnly) {
-      console.log("toggle goal", goal.id);
       onToggle(goal.id);
     }
   };

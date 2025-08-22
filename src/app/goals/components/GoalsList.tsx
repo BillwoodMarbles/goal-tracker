@@ -86,8 +86,8 @@ export const GoalsList: React.FC<GoalsListProps> = ({
     );
   }
 
-  const completedGoals = goals.filter((goal) => goal.completed);
-  const pendingGoals = goals.filter((goal) => !goal.completed);
+  // const completedGoals = goals.filter((goal) => goal.completed);
+  // const pendingGoals = goals.filter((goal) => !goal.completed);
 
   return (
     <Box>
@@ -101,7 +101,6 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               height: 8,
               borderRadius: 4,
               backgroundColor: "grey.200",
-              mb: 1,
               "& .MuiLinearProgress-bar": {
                 borderRadius: 4,
                 backgroundColor:
@@ -112,7 +111,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
             }}
           />
 
-          <Box
+          {/* <Box
             display="flex"
             alignItems="center"
             gap={1}
@@ -121,19 +120,17 @@ export const GoalsList: React.FC<GoalsListProps> = ({
             <Typography variant="body2" color="text.secondary">
               {completionStats.percentage}% complete
             </Typography>
-
-            <CompletionChip completionStats={completionStats} />
-          </Box>
+          </Box> */}
         </Paper>
       )}
 
       {/* Pending Goals */}
-      {pendingGoals.length > 0 && (
+      {goals.length > 0 && (
         <Box mb={3}>
           <Typography variant="h6" gutterBottom>
-            Daily Goals ({pendingGoals.length})
+            Daily Goals <CompletionChip completionStats={completionStats} />
           </Typography>
-          {pendingGoals.map((goal) => (
+          {goals.map((goal) => (
             <GoalItem
               key={goal.id}
               goal={goal}
@@ -148,7 +145,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
       )}
 
       {/* Completed Goals */}
-      {completedGoals.length > 0 && (
+      {/* {completedGoals.length > 0 && (
         <Box>
           <Typography variant="h6" gutterBottom sx={{ color: "success.main" }}>
             Completed ({completedGoals.length})
@@ -165,7 +162,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
             />
           ))}
         </Box>
-      )}
+      )} */}
 
       {/* Weekly Goals Section */}
       {weeklyGoals.length > 0 && (
