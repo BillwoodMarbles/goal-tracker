@@ -116,7 +116,7 @@ export class LocalStorageService {
   getGoalsForDay(dayOfWeek: DayOfWeek): Goal[] {
     const data = this.getGoalsData();
     return data.goals.filter(
-      (goal) => goal.isActive && goal.daysOfWeek.includes(dayOfWeek)
+      (goal) => goal.isActive && goal.daysOfWeek?.includes(dayOfWeek)
     );
   }
 
