@@ -124,12 +124,8 @@ export const GoalsList: React.FC<GoalsListProps> = ({
       {/* Pending Goals */}
       {pendingGoals.length > 0 && (
         <Box mb={3}>
-          <Typography
-            variant="h6"
-            gutterBottom
-            sx={{ color: "text.secondary" }}
-          >
-            Pending Goals ({pendingGoals.length})
+          <Typography variant="h6" gutterBottom>
+            Goals ({pendingGoals.length})
           </Typography>
           {pendingGoals.map((goal) => (
             <GoalItem
@@ -148,7 +144,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
       {completedGoals.length > 0 && (
         <Box>
           <Typography variant="h6" gutterBottom sx={{ color: "success.main" }}>
-            Completed Goals ({completedGoals.length})
+            Completed ({completedGoals.length})
           </Typography>
           {completedGoals.map((goal) => (
             <GoalItem

@@ -157,18 +157,14 @@ const Goals = () => {
   const completionStats = getStats();
 
   return (
-    <Box sx={{ py: 3 }}>
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 3 }}
-      >
-        <Typography variant="h1" sx={{ fontSize: "2.5rem", fontWeight: 600 }}>
-          Goals
-        </Typography>
-
-        {!isToday && (
+    <Box>
+      {!isToday && (
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          sx={{ mb: 3 }}
+        >
           <Button
             variant="outlined"
             startIcon={<TodayIcon />}
@@ -177,8 +173,8 @@ const Goals = () => {
           >
             Today
           </Button>
-        )}
-      </Box>
+        </Box>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>

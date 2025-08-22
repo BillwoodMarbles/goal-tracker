@@ -35,7 +35,7 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
   onNextDay,
 }) => {
   return (
-    <Card sx={{ mb: 3 }}>
+    <Card sx={{ mb: 2 }}>
       <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
         <Box display="flex" alignItems="center" gap={1}>
           <IconButton onClick={onPrevDay} size="small">
