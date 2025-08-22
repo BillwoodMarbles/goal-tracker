@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import {
   Goal,
   DailyGoals,
@@ -5,6 +6,7 @@ import {
   STORAGE_KEYS,
   DayOfWeek,
   DAYS_OF_WEEK,
+  getDayOfWeekFromIndex,
 } from "../types";
 
 // Utility functions for date handling
@@ -17,17 +19,8 @@ export const getTodayString = (): string => {
 };
 
 export const getCurrentDayOfWeek = (): DayOfWeek => {
-  const dayIndex = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
-  const dayMapping: DayOfWeek[] = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-  ];
-  return dayMapping[dayIndex];
+  const dayIndex = dayjs().day(); // 0 = Sunday, 1 = Monday, etc.
+  return getDayOfWeekFromIndex(dayIndex);
 };
 
 // Local storage service for goals data
@@ -49,6 +42,7 @@ export class LocalStorageService {
       }
 
       const parsed = JSON.parse(data);
+
       // Convert date strings back to Date objects
       parsed.goals = parsed.goals.map((goal: Goal) => ({
         ...goal,
@@ -153,18 +147,8 @@ export class LocalStorageService {
 
     if (!data.dailyGoals[date]) {
       // Get day of week for the given date
-      const dateObj = new Date(date);
-      const dayIndex = dateObj.getDay();
-      const dayMapping: DayOfWeek[] = [
-        "sunday",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
-      ];
-      const dayOfWeek = dayMapping[dayIndex];
+      const dayIndex = dayjs(date).day();
+      const dayOfWeek = getDayOfWeekFromIndex(dayIndex);
 
       // Initialize daily goals for the date with goals active on that day
       const goalsForDay = this.getGoalsForDay(dayOfWeek);
@@ -229,18 +213,8 @@ export class LocalStorageService {
   // Get goals with their completion status for a specific date
   getGoalsWithStatus(date: string = getTodayString()) {
     // Get day of week for the given date
-    const dateObj = new Date(date);
-    const dayIndex = dateObj.getDay();
-    const dayMapping: DayOfWeek[] = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ];
-    const dayOfWeek = dayMapping[dayIndex];
+    const dayIndex = dayjs(date).day();
+    const dayOfWeek = getDayOfWeekFromIndex(dayIndex);
 
     // Get goals that should be active on this day of the week
     const goalsForDay = this.getGoalsForDay(dayOfWeek);

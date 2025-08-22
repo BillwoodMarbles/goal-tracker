@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { formatDate, getTodayString } from "../services/localStorageService";
+import dayjs from "dayjs";
+import {
+  formatDate,
+  getTodayString,
+  getCurrentDayOfWeek,
+} from "../services/localStorageService";
 
 export const useDateNavigation = () => {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
@@ -42,26 +47,19 @@ export const useDateNavigation = () => {
 
   // Format date for display
   const getDisplayDate = useCallback(() => {
-    const date = new Date(selectedDate);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
+    const selectedDay = dayjs(selectedDate);
+    const today = dayjs();
+    const yesterday = today.subtract(1, "day");
+    const tomorrow = today.add(1, "day");
 
-    if (selectedDate === formatDate(today)) {
-      return "Today";
-    } else if (selectedDate === formatDate(yesterday)) {
-      return "Yesterday";
-    } else if (selectedDate === formatDate(tomorrow)) {
-      return "Tomorrow";
+    if (selectedDate === today.format("YYYY-MM-DD")) {
+      return "Today - " + selectedDay.format("dddd");
+    } else if (selectedDate === yesterday.format("YYYY-MM-DD")) {
+      return "Yesterday - " + selectedDay.format("dddd");
+    } else if (selectedDate === tomorrow.format("YYYY-MM-DD")) {
+      return "Tomorrow - " + selectedDay.format("dddd");
     } else {
-      return date.toLocaleDateString("en-US", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
+      return selectedDay.format("dddd");
     }
   }, [selectedDate]);
 

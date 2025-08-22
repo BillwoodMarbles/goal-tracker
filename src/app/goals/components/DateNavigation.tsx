@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import dayjs from "dayjs";
 import {
   Card,
   CardContent,
@@ -34,6 +35,15 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
   onPrevDay,
   onNextDay,
 }) => {
+  const selectedDay = dayjs(selectedDate);
+
+  // Extract just the day name from displayDate or use dayjs format
+  const dayOfWeek = displayDate.includes(" - ")
+    ? displayDate.split(" - ")[0]
+    : selectedDay.format("dddd");
+
+  const fullDate = selectedDay.format("MMMM D, YYYY");
+
   return (
     <Card sx={{ mb: 2 }}>
       <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
@@ -44,10 +54,10 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
 
           <Box textAlign="center" flexGrow={1}>
             <Typography variant="h6" component="div">
-              {displayDate}
+              {dayOfWeek}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {selectedDate}
+              {fullDate}
             </Typography>
           </Box>
 

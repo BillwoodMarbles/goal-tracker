@@ -19,13 +19,13 @@ export type DayOfWeek =
   | "sunday";
 
 export const DAYS_OF_WEEK: DayOfWeek[] = [
+  "sunday",
   "monday",
   "tuesday",
   "wednesday",
   "thursday",
   "friday",
   "saturday",
-  "sunday",
 ];
 
 export const DAY_ABBREVIATIONS: Record<DayOfWeek, string> = {
@@ -36,6 +36,12 @@ export const DAY_ABBREVIATIONS: Record<DayOfWeek, string> = {
   friday: "Fri",
   saturday: "Sat",
   sunday: "Sun",
+};
+
+// Utility function to get day of week from JavaScript's Date.getDay()
+// Date.getDay() returns: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+export const getDayOfWeekFromIndex = (dayIndex: number): DayOfWeek => {
+  return DAYS_OF_WEEK[dayIndex];
 };
 
 export interface DailyGoalStatus {
