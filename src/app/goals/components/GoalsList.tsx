@@ -9,10 +9,7 @@ import {
   Paper,
   LinearProgress,
 } from "@mui/material";
-import {
-  EmojiEvents as TrophyIcon,
-  Assignment as AssignmentIcon,
-} from "@mui/icons-material";
+import { Assignment as AssignmentIcon } from "@mui/icons-material";
 import { GoalWithStatus } from "../types";
 import { GoalItem } from "./GoalItem";
 import { CompletionChip } from "./CompletionChip";

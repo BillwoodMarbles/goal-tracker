@@ -33,7 +33,6 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
   isFuture,
   onPrevDay,
   onNextDay,
-  completionStats,
 }) => {
   return (
     <Card sx={{ mb: 3 }}>

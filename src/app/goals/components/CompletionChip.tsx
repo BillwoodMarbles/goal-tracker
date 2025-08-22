@@ -43,7 +43,7 @@ export const CompletionChip: React.FC<CompletionChipProps> = ({
   return (
     <Chip
       label={getCompletionText(completionStats)}
-      color={getCompletionColor(completionStats.percentage) as any}
+      color={getCompletionColor(completionStats.percentage)}
       variant={chipVariant}
       size={size}
     />
