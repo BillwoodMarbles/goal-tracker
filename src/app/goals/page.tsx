@@ -130,7 +130,9 @@ const Goals = () => {
     // Search through both daily and weekly goals
     const goal =
       goals.find((g) => g.id === goalId) ||
-      weeklyGoals.find((g) => g.id === goalId);
+      weeklyGoals.find((g) => g.id === goalId) ||
+      inactiveGoals.find((g) => g.id === goalId);
+
     if (!goal) return;
 
     setEditDialog({

@@ -85,27 +85,24 @@ export const GoalItem: React.FC<GoalItemProps> = ({
         },
       }}
     >
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+      <CardContent sx={{ py: 2, pr: 2, pl: 1, "&:last-child": { pb: 2 } }}>
         <Box
           display="flex"
-          flexDirection={"row"}
+          flexDirection={"row-reverse"}
           justifyContent={"space-between"}
-          gap={2}
+          alignItems={"center"}
+          position="relative"
         >
           <Box
             display="flex"
-            alignItems="flex-start"
+            alignItems="center"
+            justifyContent={"space-between"}
             flexGrow={1}
             gap={1}
-            flexDirection={"column"}
+            flexDirection={"row"}
           >
             <Box flex={1} minWidth={0}>
-              <Box
-                display="flex"
-                alignItems="center"
-                gap={1}
-                mb={goal.description ? 0.5 : 0}
-              >
+              <Box display="flex" alignItems="center" gap={1}>
                 <Typography
                   variant="h6"
                   sx={{
@@ -118,7 +115,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                   {goal.title}
                 </Typography>
 
-                {goal.isMultiStep && goal.totalSteps > 1 && (
+                {/* {goal.isMultiStep && goal.totalSteps > 1 && (
                   <Chip
                     label={`${goal.completedSteps}/${goal.totalSteps}`}
                     size="small"
@@ -126,21 +123,25 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                     variant="outlined"
                     sx={{ height: 20, fontSize: "0.75rem" }}
                   />
-                )}
+                )} */}
 
                 {goal.completed && goal.completedAt && (
-                  <Chip
-                    label={`Completed at ${formatCompletedTime(
-                      goal.completedAt
-                    )}`}
-                    size="small"
+                  <Typography
+                    variant="body2"
                     color="success"
-                    variant="outlined"
-                  />
+                    sx={{
+                      position: "absolute",
+                      top: -12,
+                      left: 0,
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    {`Completed at ${formatCompletedTime(goal.completedAt)}`}
+                  </Typography>
                 )}
               </Box>
 
-              {goal.description && (
+              {/* {goal.description && (
                 <Typography
                   variant="body2"
                   color="text.secondary"
@@ -151,7 +152,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                 >
                   {goal.description}
                 </Typography>
-              )}
+              )} */}
             </Box>
 
             {/* Single step goal - show one checkbox */}
@@ -160,7 +161,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                 checked={goal.completed}
                 onChange={handleToggle}
                 disabled={isReadOnly}
-                icon={<CheckCircleIcon />}
+                icon={<CheckCircleOutline />}
                 size="large"
                 checkedIcon={<CheckCircleIcon />}
                 sx={{
@@ -168,19 +169,12 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                   "&.Mui-checked": {
                     color: "success.main",
                   },
-                  mt: -0.5,
                   p: 0.25,
                 }}
               />
             ) : (
               /* Multi-step goal - show multiple checkboxes */
-              <Box
-                display="flex"
-                flexDirection="row"
-                width={"100%"}
-                gap={0.15}
-                sx={{ mt: -0.5 }}
-              >
+              <Box display="flex" flexDirection="row" gap={0.15} sx={{}}>
                 {Array.from({ length: goal.totalSteps }, (_, index) => {
                   const isStepCompleted =
                     goal.stepCompletions && goal.stepCompletions[index];
@@ -209,11 +203,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
 
           {(onEdit || onDelete) && (
             <Box>
-              <IconButton
-                size="small"
-                onClick={handleMenuOpen}
-                sx={{ mt: -0.5 }}
-              >
+              <IconButton size="small" onClick={handleMenuOpen} sx={{}}>
                 <MoreVertIcon />
               </IconButton>
 

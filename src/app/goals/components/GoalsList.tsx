@@ -127,9 +127,17 @@ export const GoalsList: React.FC<GoalsListProps> = ({
       {/* Pending Goals */}
       {goals.length > 0 && (
         <Box mb={3}>
-          <Typography variant="h6" gutterBottom>
-            Daily Goals <CompletionChip completionStats={completionStats} />
-          </Typography>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="h6" gutterBottom>
+              Daily Goals
+            </Typography>
+            <CompletionChip completionStats={completionStats} />
+          </Box>
           {goals.map((goal) => (
             <GoalItem
               key={goal.id}
@@ -167,9 +175,26 @@ export const GoalsList: React.FC<GoalsListProps> = ({
       {/* Weekly Goals Section */}
       {weeklyGoals.length > 0 && (
         <Box sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ color: "info.main" }}>
-            Weekly Goals ({weeklyGoals.length})
-          </Typography>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+          >
+            <Typography variant="h6" gutterBottom>
+              Weekly Goals{" "}
+            </Typography>
+            <CompletionChip
+              completionStats={{
+                total: weeklyGoals.length,
+                completed: weeklyGoals.filter((goal) => goal.completed).length,
+                percentage:
+                  (weeklyGoals.filter((goal) => goal.completed).length /
+                    weeklyGoals.length) *
+                  100,
+              }}
+            />
+          </Box>
           {weeklyGoals.map((goal) => (
             <GoalItem
               key={goal.id}
