@@ -352,6 +352,81 @@ export class LocalStorageService {
     return !isStepCompleted; // Return new step status
   }
 
+  // New method to increment step completion for multi-step goals
+  incrementGoalStep(goalId: string, date: string = getTodayString()): boolean {
+    const data = this.getGoalsData();
+    const goal = data.goals.find((g) => g.id === goalId);
+
+    if (!goal || !goal.isMultiStep || goal.totalSteps <= 1) {
+      return false;
+    }
+
+    // Ensure daily goals exist
+    if (!data.dailyGoals[date]) {
+      this.getDailyGoals(date);
+    }
+
+    const dailyGoals = data.dailyGoals[date];
+    let goalStatusIndex = dailyGoals.goals.findIndex(
+      (gs) => gs.goalId === goalId
+    );
+
+    if (goalStatusIndex === -1) {
+      dailyGoals.goals.push({
+        goalId,
+        completed: false,
+        completedSteps: 0,
+        stepCompletions: [],
+      });
+      goalStatusIndex = dailyGoals.goals.length - 1;
+    }
+
+    const goalStatus = dailyGoals.goals[goalStatusIndex];
+
+    // Ensure stepCompletions array is properly sized
+    while (goalStatus.stepCompletions.length < goal.totalSteps) {
+      goalStatus.stepCompletions.push(undefined);
+    }
+
+    // Check if all steps are already completed - if so, reset to 0
+    if (goalStatus.completedSteps >= goal.totalSteps) {
+      // Reset all steps to incomplete
+      goalStatus.stepCompletions = new Array(goal.totalSteps).fill(undefined);
+      goalStatus.completedSteps = 0;
+      goalStatus.completed = false;
+      goalStatus.completedAt = undefined;
+
+      dailyGoals.lastUpdated = new Date();
+      this.saveGoalsData(data);
+
+      return true; // Successfully reset
+    }
+
+    // Find the next incomplete step
+    const nextIncompleteStepIndex = goalStatus.stepCompletions.findIndex(
+      (step) => !step
+    );
+
+    if (nextIncompleteStepIndex === -1) {
+      return false; // All steps are completed
+    }
+
+    // Complete the next step
+    goalStatus.stepCompletions[nextIncompleteStepIndex] = new Date();
+    goalStatus.completedSteps = goalStatus.stepCompletions.filter(
+      (s) => s
+    ).length;
+
+    // Update overall completion status
+    goalStatus.completed = goalStatus.completedSteps === goal.totalSteps;
+    goalStatus.completedAt = goalStatus.completed ? new Date() : undefined;
+
+    dailyGoals.lastUpdated = new Date();
+    this.saveGoalsData(data);
+
+    return true; // Successfully incremented
+  }
+
   // Get goals with their completion status for a specific date
   getGoalsWithStatus(date: string = getTodayString()) {
     // Get day of week for the given date
@@ -581,6 +656,93 @@ export class LocalStorageService {
     this.saveGoalsData(data);
 
     return !isStepCompleted; // Return new step status
+  }
+
+  // New method to increment weekly goal step completion
+  incrementWeeklyGoalStep(
+    goalId: string,
+    date: string = getTodayString()
+  ): boolean {
+    const data = this.getGoalsData();
+    const weekStart = this.getWeekStart(date);
+    const goal = this.getGoals().find((g) => g.id === goalId);
+
+    if (
+      !goal ||
+      goal.goalType !== GoalType.WEEKLY ||
+      !goal.isMultiStep ||
+      goal.totalSteps <= 1
+    ) {
+      return false;
+    }
+
+    if (!data.weeklyGoals) {
+      data.weeklyGoals = {};
+    }
+
+    if (!data.weeklyGoals[weekStart]) {
+      data.weeklyGoals[weekStart] = {
+        weekStart,
+        goals: [],
+        lastUpdated: new Date(),
+      };
+    }
+
+    const weeklyGoals = data.weeklyGoals[weekStart];
+    let goalStatus = weeklyGoals.goals.find((gs) => gs.goalId === goalId);
+    if (!goalStatus) {
+      goalStatus = {
+        goalId,
+        completed: false,
+        completedAt: undefined,
+        completedSteps: 0,
+        stepCompletions: [],
+      };
+      weeklyGoals.goals.push(goalStatus);
+    }
+
+    // Ensure stepCompletions array is properly sized
+    while (goalStatus.stepCompletions.length < goal.totalSteps) {
+      goalStatus.stepCompletions.push(undefined);
+    }
+
+    // Check if all steps are already completed - if so, reset to 0
+    if (goalStatus.completedSteps >= goal.totalSteps) {
+      // Reset all steps to incomplete
+      goalStatus.stepCompletions = new Array(goal.totalSteps).fill(undefined);
+      goalStatus.completedSteps = 0;
+      goalStatus.completed = false;
+      goalStatus.completedAt = undefined;
+
+      weeklyGoals.lastUpdated = new Date();
+      this.saveGoalsData(data);
+
+      return true; // Successfully reset
+    }
+
+    // Find the next incomplete step
+    const nextIncompleteStepIndex = goalStatus.stepCompletions.findIndex(
+      (step) => !step
+    );
+
+    if (nextIncompleteStepIndex === -1) {
+      return false; // All steps are completed
+    }
+
+    // Complete the next step
+    goalStatus.stepCompletions[nextIncompleteStepIndex] = new Date();
+    goalStatus.completedSteps = goalStatus.stepCompletions.filter(
+      (s) => s
+    ).length;
+
+    // Update overall completion status
+    goalStatus.completed = goalStatus.completedSteps === goal.totalSteps;
+    goalStatus.completedAt = goalStatus.completed ? new Date() : undefined;
+
+    weeklyGoals.lastUpdated = new Date();
+    this.saveGoalsData(data);
+
+    return true; // Successfully incremented
   }
 
   // Get completion statistics (only for daily goals)

@@ -1,14 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Box,
-  Typography,
-  Alert,
-  CircularProgress,
-  Paper,
-  LinearProgress,
-} from "@mui/material";
+import { Box, Typography, Alert, CircularProgress, Paper } from "@mui/material";
 import { Assignment as AssignmentIcon } from "@mui/icons-material";
 import { GoalWithStatus } from "../types";
 import { GoalItem } from "./GoalItem";
@@ -22,6 +15,7 @@ interface GoalsListProps {
   error: string | null;
   onToggleGoal: (goalId: string) => void;
   onToggleGoalStep: (goalId: string, stepIndex: number) => void;
+  onIncrementGoalStep?: (goalId: string) => void;
   onEditGoal?: (goalId: string) => void;
   onDeleteGoal?: (goalId: string) => void;
   isReadOnly?: boolean;
@@ -40,6 +34,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
   error,
   onToggleGoal,
   onToggleGoalStep,
+  onIncrementGoalStep,
   onEditGoal,
   onDeleteGoal,
   isReadOnly = false,
@@ -91,39 +86,6 @@ export const GoalsList: React.FC<GoalsListProps> = ({
 
   return (
     <Box>
-      {/* Progress Overview */}
-      {completionStats.total > 0 && (
-        <Paper sx={{ p: 3, mb: 3, backgroundColor: "primary.50" }}>
-          <LinearProgress
-            variant="determinate"
-            value={completionStats.percentage}
-            sx={{
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: "grey.200",
-              "& .MuiLinearProgress-bar": {
-                borderRadius: 4,
-                backgroundColor:
-                  completionStats.percentage === 100
-                    ? "success.main"
-                    : "primary.main",
-              },
-            }}
-          />
-
-          {/* <Box
-            display="flex"
-            alignItems="center"
-            gap={1}
-            justifyContent="space-between"
-          >
-            <Typography variant="body2" color="text.secondary">
-              {completionStats.percentage}% complete
-            </Typography>
-          </Box> */}
-        </Paper>
-      )}
-
       {/* Pending Goals */}
       {goals.length > 0 && (
         <Box mb={3}>
@@ -144,6 +106,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               goal={goal}
               onToggle={onToggleGoal}
               onToggleStep={onToggleGoalStep}
+              onIncrementStep={onIncrementGoalStep}
               onEdit={onEditGoal}
               onDelete={onDeleteGoal}
               isReadOnly={isReadOnly}
@@ -201,6 +164,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               goal={goal}
               onToggle={onToggleGoal}
               onToggleStep={onToggleGoalStep}
+              onIncrementStep={onIncrementGoalStep}
               onEdit={onEditGoal}
               onDelete={onDeleteGoal}
               isReadOnly={isReadOnly}
@@ -237,6 +201,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               goal={goal}
               onToggle={() => {}} // No-op for inactive goals
               onToggleStep={() => {}} // No-op for inactive goals
+              onIncrementStep={() => {}} // No-op for inactive goals
               onEdit={onEditGoal}
               onDelete={onDeleteGoal}
               isReadOnly={true}

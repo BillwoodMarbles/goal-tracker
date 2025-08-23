@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  Container,
 } from "@mui/material";
 // import { Today as TodayIcon } from "@mui/icons-material";
 import { useGoals } from "./hooks/useGoals";
@@ -40,6 +41,7 @@ const Goals = () => {
     error,
     toggleGoal,
     toggleGoalStep,
+    incrementGoalStep,
     updateGoal,
     deleteGoal,
     getStats,
@@ -126,6 +128,26 @@ const Goals = () => {
     // No snackbar for individual steps to avoid spam
   };
 
+  const handleIncrementGoalStep = async (goalId: string) => {
+    // Search through both daily and weekly goals
+    const goal =
+      goals.find((g) => g.id === goalId) ||
+      weeklyGoals.find((g) => g.id === goalId);
+    if (!goal) return;
+
+    // Check if the goal was completed before incrementing
+    const wasCompleted = goal.completed;
+
+    const success = await incrementGoalStep(goalId);
+    if (success) {
+      if (wasCompleted) {
+        showSnackbar(`"${goal.title}" reset to start!`);
+      } else {
+        showSnackbar(`Progress updated for "${goal.title}"!`);
+      }
+    }
+  };
+
   const handleEditGoal = (goalId: string) => {
     // Search through both daily and weekly goals
     const goal =
@@ -198,7 +220,8 @@ const Goals = () => {
     // Search through both daily and weekly goals
     const goal =
       goals.find((g) => g.id === goalId) ||
-      weeklyGoals.find((g) => g.id === goalId);
+      weeklyGoals.find((g) => g.id === goalId) ||
+      inactiveGoals.find((g) => g.id === goalId);
     if (!goal) return;
 
     setDeleteDialog({
@@ -257,84 +280,87 @@ const Goals = () => {
         completionStats={completionStats}
       />
 
-      <GoalsList
-        goals={goals}
-        weeklyGoals={weeklyGoals}
-        inactiveGoals={inactiveGoals}
-        loading={loading}
-        error={error}
-        onToggleGoal={handleToggleGoal}
-        onToggleGoalStep={handleToggleGoalStep}
-        onEditGoal={handleEditGoal}
-        onDeleteGoal={handleDeleteGoal}
-        isReadOnly={isFuture}
-        completionStats={completionStats}
-      />
+      <Container component="main" sx={{ py: 1 }}>
+        <GoalsList
+          goals={goals}
+          weeklyGoals={weeklyGoals}
+          inactiveGoals={inactiveGoals}
+          loading={loading}
+          error={error}
+          onToggleGoal={handleToggleGoal}
+          onToggleGoalStep={handleToggleGoalStep}
+          onIncrementGoalStep={handleIncrementGoalStep}
+          onEditGoal={handleEditGoal}
+          onDeleteGoal={handleDeleteGoal}
+          isReadOnly={isFuture}
+          completionStats={completionStats}
+        />
 
-      {/* Edit Goal Dialog */}
-      <Dialog
-        open={editDialog.open}
-        onClose={handleCancelEdit}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogContent sx={{ p: 3 }}>
-          <GoalForm
-            onSubmit={handleUpdateGoal}
-            onCancel={handleCancelEdit}
-            submitButtonText="Update Goal"
-            title="Edit Goal"
-            showCloseButton={true}
-            initialValues={editDialog.goalData || undefined}
-          />
-        </DialogContent>
-      </Dialog>
+        {/* Edit Goal Dialog */}
+        <Dialog
+          open={editDialog.open}
+          onClose={handleCancelEdit}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogContent sx={{ p: 3 }}>
+            <GoalForm
+              onSubmit={handleUpdateGoal}
+              onCancel={handleCancelEdit}
+              submitButtonText="Update Goal"
+              title="Edit Goal"
+              showCloseButton={true}
+              initialValues={editDialog.goalData || undefined}
+            />
+          </DialogContent>
+        </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialog.open}
-        onClose={() =>
-          setDeleteDialog({ open: false, goalId: null, goalTitle: "" })
-        }
-      >
-        <DialogTitle>Delete Goal</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete &quot;{deleteDialog.goalTitle}
-            &quot;? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() =>
-              setDeleteDialog({ open: false, goalId: null, goalTitle: "" })
-            }
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmDelete}
-            variant="contained"
-            color="error"
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteDialog.open}
+          onClose={() =>
+            setDeleteDialog({ open: false, goalId: null, goalTitle: "" })
+          }
+        >
+          <DialogTitle>Delete Goal</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete &quot;{deleteDialog.goalTitle}
+              &quot;? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() =>
+                setDeleteDialog({ open: false, goalId: null, goalTitle: "" })
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              variant="contained"
+              color="error"
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
 
-      {/* Success/Error Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-      >
-        <Alert
-          severity={snackbar.severity}
+        {/* Success/Error Snackbar */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={4000}
           onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+          <Alert
+            severity={snackbar.severity}
+            onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Container>
     </Box>
   );
 };

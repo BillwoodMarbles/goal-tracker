@@ -2,14 +2,7 @@
 
 import React from "react";
 import dayjs from "dayjs";
-import {
-  Card,
-  CardContent,
-  Box,
-  Typography,
-  IconButton,
-  Chip,
-} from "@mui/material";
+import { Box, Typography, IconButton, LinearProgress } from "@mui/material";
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -31,9 +24,9 @@ interface DateNavigationProps {
 export const DateNavigation: React.FC<DateNavigationProps> = ({
   selectedDate,
   displayDate,
-  isFuture,
   onPrevDay,
   onNextDay,
+  completionStats,
 }) => {
   const selectedDay = dayjs(selectedDate);
 
@@ -45,38 +38,51 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
   const fullDate = selectedDay.format("MMMM D, YYYY");
 
   return (
-    <Card sx={{ mb: 2 }}>
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        <Box display="flex" alignItems="center" gap={1}>
-          <IconButton onClick={onPrevDay} size="small">
-            <ChevronLeftIcon />
-          </IconButton>
+    <Box sx={{ mb: 2, p: 0, pb: 0.5, backgroundColor: "white" }}>
+      <Box display="flex" alignItems="center" gap={1} sx={{ py: 1, px: 2 }}>
+        <IconButton onClick={onPrevDay} size="small">
+          <ChevronLeftIcon />
+        </IconButton>
 
-          <Box textAlign="center" flexGrow={1}>
-            <Typography variant="h6" component="div">
-              {dayOfWeek}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {fullDate}
-            </Typography>
-          </Box>
-
-          <IconButton onClick={onNextDay} size="small">
-            <ChevronRightIcon />
-          </IconButton>
+        <Box textAlign="center" flexGrow={1}>
+          <Typography variant="h6" component="div">
+            {dayOfWeek}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {fullDate}
+          </Typography>
         </Box>
 
-        {isFuture && (
-          <Box mt={2}>
-            <Chip
-              label="Future Date - Goals can be planned but not completed yet"
-              color="info"
-              variant="outlined"
-              size="small"
-            />
-          </Box>
-        )}
-      </CardContent>
-    </Card>
+        <IconButton onClick={onNextDay} size="small">
+          <ChevronRightIcon />
+        </IconButton>
+      </Box>
+
+      {/* {isFuture && (
+        <Box mt={2}>
+          <Chip
+            label="Future Date - Goals can be planned but not completed yet"
+            color="info"
+            variant="outlined"
+            size="small"
+          />
+        </Box>
+      )} */}
+
+      <LinearProgress
+        variant="determinate"
+        value={completionStats.percentage}
+        sx={{
+          height: 8,
+          backgroundColor: "grey.200",
+          "& .MuiLinearProgress-bar": {
+            backgroundColor:
+              completionStats.percentage === 100
+                ? "success.main"
+                : "primary.main",
+          },
+        }}
+      />
+    </Box>
   );
 };

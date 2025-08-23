@@ -32,9 +32,7 @@ export default function RootLayout({
       >
         <AppHeader />
 
-        <Container component="main" sx={{ mt: 2 }}>
-          {children}
-        </Container>
+        {children}
 
         <footer>
           <Container></Container>

@@ -145,6 +145,35 @@ export const useGoals = (selectedDate?: string) => {
     [storageService, currentDate, loadGoals]
   );
 
+  // Increment step completion for multi-step goals
+  const incrementGoalStep = useCallback(
+    async (goalId: string): Promise<boolean> => {
+      try {
+        // Check if it's a weekly goal
+        const goal = storageService.getGoals().find((g) => g.id === goalId);
+        if (goal?.goalType === GoalType.WEEKLY) {
+          const success = storageService.incrementWeeklyGoalStep(
+            goalId,
+            currentDate
+          );
+          loadGoals(); // Refresh the goals list
+          setError(null);
+          return success;
+        } else {
+          const success = storageService.incrementGoalStep(goalId, currentDate);
+          loadGoals(); // Refresh the goals list
+          setError(null);
+          return success;
+        }
+      } catch (err) {
+        setError("Failed to increment goal step");
+        console.error("Error incrementing goal step:", err);
+        return false;
+      }
+    },
+    [storageService, currentDate, loadGoals]
+  );
+
   // Update an existing goal
   const updateGoal = useCallback(
     async (goalId: string, updates: Partial<Goal>): Promise<Goal | null> => {
@@ -211,6 +240,7 @@ export const useGoals = (selectedDate?: string) => {
     addGoal,
     toggleGoal,
     toggleGoalStep,
+    incrementGoalStep,
     updateGoal,
     deleteGoal,
     getStats,
