@@ -11,7 +11,6 @@ import {
   MenuItem,
   Box,
   CircularProgress,
-  Chip,
 } from "@mui/material";
 import {
   MoreVert as MoreVertIcon,
@@ -65,14 +64,11 @@ export const GoalItem: React.FC<GoalItemProps> = ({
     }
   };
 
-  // const formatCompletedTime = (date?: Date) => {
-  //   if (!date) return "";
-  //   return date.toLocaleTimeString("en-US", {
-  //     hour: "numeric",
-  //     minute: "2-digit",
-  //     hour12: true,
-  //   });
-  // };
+  const getStepCounterColor = () => {
+    if (goal.completedSteps === 0) return "text.secondary";
+    if (goal.completed) return "success.main";
+    return "primary.main";
+  };
 
   return (
     <Card
@@ -115,109 +111,61 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                 >
                   {goal.title}
                 </Typography>
-
-                {/* {goal.completed && goal.completedAt && (
-                  <Typography
-                    variant="body2"
-                    color="success"
-                    sx={{
-                      position: "absolute",
-                      top: -12,
-                      left: 0,
-                      fontSize: "0.75rem",
-                    }}
-                  >
-                    {`Completed at ${formatCompletedTime(goal.completedAt)}`}
-                  </Typography>
-                )} */}
               </Box>
-
-              {/* {goal.description && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{
-                    textDecoration: goal.completed ? "line-through" : "none",
-                    mb: 1,
-                  }}
-                >
-                  {goal.description}
-                </Typography>
-              )} */}
             </Box>
             <Box display="flex" alignItems="center" gap={1}>
               {goal.isMultiStep && goal.totalSteps > 1 && (
-                <Chip
-                  label={`${goal.completedSteps}/${goal.totalSteps}`}
-                  size="medium"
-                  color={goal.completed ? "success" : "default"}
-                  variant="outlined"
-                />
+                <Typography
+                  variant="body1"
+                  color={getStepCounterColor()}
+                  mr={1}
+                  onClick={() => {
+                    onIncrementStep?.(goal.id);
+                  }}
+                >
+                  {goal.completedSteps}/{goal.totalSteps}
+                </Typography>
               )}
 
-              {/* Single step goal - show one checkbox */}
-              {!goal.isMultiStep || goal.totalSteps === 1 ? (
-                <Box position="relative">
-                  <CircularProgress
-                    variant="determinate"
-                    value={goal.completed ? 100 : 0}
-                    size={42}
-                    sx={{
-                      color: "success.main",
-                      position: "absolute",
-                      top: "0",
-                      left: "0",
-                    }}
-                  />
-                  <Checkbox
-                    checked={goal.completed}
-                    onChange={handleToggle}
-                    disabled={isReadOnly}
-                    icon={<CheckSharp />}
-                    size="medium"
-                    checkedIcon={<CheckSharp />}
-                    sx={{
-                      color: "primary.main",
-                      "&.Mui-checked": {
-                        color: "white",
-                        backgroundColor: "success.main",
-                      },
-                      transition: "all 0.3s ease-in-out",
-                    }}
-                  />
-                </Box>
-              ) : (
-                /* Multi-step goal - show single checkbox with progress */
-                <Box position="relative">
-                  <CircularProgress
-                    variant="determinate"
-                    value={(goal.completedSteps / goal.totalSteps) * 100}
-                    size={42}
-                    sx={{
-                      color: goal.completed ? "success.main" : "primary.main",
-                      position: "absolute",
-                      top: "0",
-                      left: "0",
-                    }}
-                  />
-                  <Checkbox
-                    checked={goal.completed}
-                    onChange={() => onIncrementStep?.(goal.id)}
-                    disabled={isReadOnly}
-                    icon={<CheckSharp />}
-                    size="medium"
-                    checkedIcon={<CheckSharp />}
-                    sx={{
-                      color: "primary.main",
-                      "&.Mui-checked": {
-                        color: "white",
-                        backgroundColor: "success.main",
-                      },
-                      transition: "all 0.3s ease-in-out",
-                    }}
-                  />
-                </Box>
-              )}
+              <Box position="relative">
+                <CircularProgress
+                  variant="determinate"
+                  value={
+                    !goal.isMultiStep || goal.totalSteps === 1
+                      ? goal.completed
+                        ? 100
+                        : 0
+                      : (goal.completedSteps / goal.totalSteps) * 100
+                  }
+                  size={42}
+                  sx={{
+                    color: goal.completed ? "success.main" : "primary.main",
+                    position: "absolute",
+                    top: "0",
+                    left: "0",
+                  }}
+                />
+                <Checkbox
+                  checked={goal.completed}
+                  onChange={
+                    !goal.isMultiStep || goal.totalSteps === 1
+                      ? handleToggle
+                      : () => onIncrementStep?.(goal.id)
+                  }
+                  disabled={isReadOnly}
+                  icon={<CheckSharp />}
+                  size="medium"
+                  checkedIcon={<CheckSharp />}
+                  sx={{
+                    color: "primary.main",
+                    "&.Mui-checked": {
+                      color: "white",
+                      backgroundColor: "success.main",
+                    },
+                    transition: "all 0.3s ease-in-out",
+                  }}
+                />
+              </Box>
             </Box>
           </Box>
 
