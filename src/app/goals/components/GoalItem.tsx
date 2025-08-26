@@ -177,7 +177,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                     size="medium"
                     checkedIcon={<CheckSharp />}
                     sx={{
-                      color: "grey.500",
+                      color: "primary.main",
                       "&.Mui-checked": {
                         color: "white",
                         backgroundColor: "success.main",
@@ -208,7 +208,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                     size="medium"
                     checkedIcon={<CheckSharp />}
                     sx={{
-                      color: "grey.500",
+                      color: "primary.main",
                       "&.Mui-checked": {
                         color: "white",
                         backgroundColor: "success.main",

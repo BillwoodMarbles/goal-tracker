@@ -13,11 +13,11 @@ import {
 
 // Utility functions for date handling
 export const formatDate = (date: Date): string => {
-  return date.toISOString().split("T")[0]; // YYYY-MM-DD format
+  return dayjs(date).format("YYYY-MM-DD"); // YYYY-MM-DD format in local timezone
 };
 
 export const getTodayString = (): string => {
-  return formatDate(new Date());
+  return dayjs().format("YYYY-MM-DD"); // Today's date in local timezone
 };
 
 export const getCurrentDayOfWeek = (): DayOfWeek => {

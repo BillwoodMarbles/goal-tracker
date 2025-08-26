@@ -5,7 +5,6 @@ import { Box, Typography, Alert, CircularProgress, Paper } from "@mui/material";
 import { Assignment as AssignmentIcon } from "@mui/icons-material";
 import { GoalWithStatus } from "../types";
 import { GoalItem } from "./GoalItem";
-import { CompletionChip } from "./CompletionChip";
 
 interface GoalsListProps {
   goals: GoalWithStatus[];
@@ -38,15 +37,11 @@ export const GoalsList: React.FC<GoalsListProps> = ({
   onEditGoal,
   onDeleteGoal,
   isReadOnly = false,
-  completionStats,
 }) => {
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" py={4}>
         <CircularProgress />
-        <Typography variant="body2" sx={{ ml: 2 }}>
-          Loading goals...
-        </Typography>
       </Box>
     );
   }
@@ -94,11 +89,10 @@ export const GoalsList: React.FC<GoalsListProps> = ({
             alignItems="center"
             justifyContent="space-between"
             gap={1}
+            mb={1}
           >
-            <Typography variant="h6" gutterBottom>
-              Daily Goals
-            </Typography>
-            <CompletionChip completionStats={completionStats} />
+            <Typography variant="h6">Daily Goals</Typography>
+            {/* <CompletionChip completionStats={completionStats} /> */}
           </Box>
           {goals.map((goal) => (
             <GoalItem
@@ -143,11 +137,10 @@ export const GoalsList: React.FC<GoalsListProps> = ({
             alignItems="center"
             justifyContent="space-between"
             gap={1}
+            mb={1}
           >
-            <Typography variant="h6" gutterBottom>
-              Weekly Goals{" "}
-            </Typography>
-            <CompletionChip
+            <Typography variant="h6">Weekly Goals </Typography>
+            {/* <CompletionChip
               completionStats={{
                 total: weeklyGoals.length,
                 completed: weeklyGoals.filter((goal) => goal.completed).length,
@@ -156,7 +149,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
                     weeklyGoals.length) *
                   100,
               }}
-            />
+            /> */}
           </Box>
           {weeklyGoals.map((goal) => (
             <GoalItem

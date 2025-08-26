@@ -13,7 +13,6 @@ import {
   Button,
   Container,
 } from "@mui/material";
-// import { Today as TodayIcon } from "@mui/icons-material";
 import { useGoals } from "./hooks/useGoals";
 import { useDateNavigation } from "./hooks/useDateNavigation";
 import { GoalForm } from "./components/GoalForm";
@@ -112,9 +111,7 @@ const Goals = () => {
       weeklyGoals.find((g) => g.id === goalId);
     if (!goal) return;
 
-    const newStatus = await toggleGoal(goalId);
-    const statusText = newStatus ? "completed" : "marked as pending";
-    showSnackbar(`"${goal.title}" ${statusText}!`);
+    await toggleGoal(goalId);
   };
 
   const handleToggleGoalStep = async (goalId: string, stepIndex: number) => {
@@ -135,17 +132,7 @@ const Goals = () => {
       weeklyGoals.find((g) => g.id === goalId);
     if (!goal) return;
 
-    // Check if the goal was completed before incrementing
-    const wasCompleted = goal.completed;
-
-    const success = await incrementGoalStep(goalId);
-    if (success) {
-      if (wasCompleted) {
-        showSnackbar(`"${goal.title}" reset to start!`);
-      } else {
-        showSnackbar(`Progress updated for "${goal.title}"!`);
-      }
-    }
+    await incrementGoalStep(goalId);
   };
 
   const handleEditGoal = (goalId: string) => {

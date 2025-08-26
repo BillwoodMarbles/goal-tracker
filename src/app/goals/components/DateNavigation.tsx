@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import dayjs from "dayjs";
 import { Box, Typography, IconButton, LinearProgress } from "@mui/material";
 import {
@@ -28,6 +28,7 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
   onNextDay,
   completionStats,
 }) => {
+  const [isClient, setIsClient] = useState(false);
   const selectedDay = dayjs(selectedDate);
 
   // Extract just the day name from displayDate or use dayjs format
@@ -37,6 +38,14 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
 
   const fullDate = selectedDay.format("MMMM D, YYYY");
 
+  const progressValue = useMemo(() => {
+    return completionStats.percentage || 0;
+  }, [completionStats.percentage]);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   return (
     <Box sx={{ mb: 2, p: 0, pb: 0.5, backgroundColor: "white" }}>
       <Box display="flex" alignItems="center" gap={1} sx={{ py: 1, px: 2 }}>
@@ -45,9 +54,7 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
         </IconButton>
 
         <Box textAlign="center" flexGrow={1}>
-          <Typography variant="h6" component="div">
-            {dayOfWeek}
-          </Typography>
+          <Typography variant="h6">{dayOfWeek}</Typography>
           <Typography variant="caption" color="text.secondary">
             {fullDate}
           </Typography>
@@ -69,20 +76,20 @@ export const DateNavigation: React.FC<DateNavigationProps> = ({
         </Box>
       )} */}
 
-      <LinearProgress
-        variant="determinate"
-        value={completionStats.percentage}
-        sx={{
-          height: 8,
-          backgroundColor: "grey.200",
-          "& .MuiLinearProgress-bar": {
-            backgroundColor:
-              completionStats.percentage === 100
-                ? "success.main"
-                : "primary.main",
-          },
-        }}
-      />
+      {isClient && (
+        <LinearProgress
+          variant="determinate"
+          value={progressValue}
+          sx={{
+            height: 8,
+            backgroundColor: "grey.200",
+            "& .MuiLinearProgress-bar": {
+              backgroundColor:
+                progressValue === 100 ? "success.main" : "primary.main",
+            },
+          }}
+        />
+      )}
     </Box>
   );
 };

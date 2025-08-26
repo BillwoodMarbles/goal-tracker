@@ -18,16 +18,16 @@ export const useDateNavigation = () => {
 
   // Navigate to previous day
   const goToPrevDay = useCallback(() => {
-    const currentDate = new Date(selectedDate);
-    currentDate.setDate(currentDate.getDate() - 1);
-    setSelectedDate(formatDate(currentDate));
+    let currentDate = dayjs(selectedDate);
+    currentDate = currentDate.subtract(1, "day");
+    setSelectedDate(currentDate.format("YYYY-MM-DD"));
   }, [selectedDate]);
 
   // Navigate to next day
   const goToNextDay = useCallback(() => {
-    const currentDate = new Date(selectedDate);
-    currentDate.setDate(currentDate.getDate() + 1);
-    setSelectedDate(formatDate(currentDate));
+    let currentDate = dayjs(selectedDate);
+    currentDate = currentDate.add(1, "day");
+    setSelectedDate(currentDate.format("YYYY-MM-DD"));
   }, [selectedDate]);
 
   // Navigate to specific date

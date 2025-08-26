@@ -146,7 +146,7 @@ export const GoalForm: React.FC<GoalFormProps> = ({
           required
           autoFocus
           disabled={isSubmitting || loading}
-          sx={{ mb: 2 }}
+          sx={{ mb: 1 }}
           placeholder="e.g., Exercise for 30 minutes"
         />
 
@@ -158,15 +158,16 @@ export const GoalForm: React.FC<GoalFormProps> = ({
           multiline
           rows={2}
           disabled={isSubmitting || loading}
-          sx={{ mb: 3 }}
+          sx={{ mb: 2 }}
           placeholder="Add any additional details about this goal..."
         />
 
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 2 }}>
           <Typography variant="body2" color="text.secondary" gutterBottom>
             Goal Type
           </Typography>
           <ToggleButtonGroup
+            color="primary"
             value={goalType}
             exclusive
             onChange={(_, newGoalType) => {
@@ -185,19 +186,10 @@ export const GoalForm: React.FC<GoalFormProps> = ({
               Weekly
             </ToggleButton>
           </ToggleButtonGroup>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ mt: 1, display: "block" }}
-          >
-            {goalType === GoalType.DAILY
-              ? "Daily goals count towards daily completion progress"
-              : "Weekly goals will be tracked on a weekly basis"}
-          </Typography>
         </Box>
 
         {goalType === GoalType.DAILY && (
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 2 }}>
             <DayOfWeekSelector
               selectedDays={selectedDays}
               onDaysChange={setSelectedDays}
@@ -206,7 +198,7 @@ export const GoalForm: React.FC<GoalFormProps> = ({
           </Box>
         )}
 
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 2 }}>
           <FormControlLabel
             control={
               <Checkbox

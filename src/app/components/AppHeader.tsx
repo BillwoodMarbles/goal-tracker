@@ -11,7 +11,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import { Add as AddIcon } from "@mui/icons-material";
+import { AddCircleOutline } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import { LocalStorageService } from "../goals/services/localStorageService";
 import { GoalForm } from "../goals/components/GoalForm";
@@ -83,9 +83,18 @@ export const AppHeader: React.FC = () => {
 
   return (
     <>
-      <AppBar position="static" sx={{ bgcolor: "white" }}>
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
-          <Image src="/logo_full_wide.svg" alt="Root" width={100} height={50} />
+      <AppBar
+        position="static"
+        sx={{
+          bgcolor: "white",
+          boxShadow: "none",
+          borderBottom: "1px solid #e0e0e0",
+        }}
+      >
+        <Toolbar
+          sx={{ display: "flex", justifyContent: "space-between", py: 1 }}
+        >
+          <Image src="/logo_full_wide.svg" alt="Root" width={90} height={50} />
 
           {isGoalsPage && (
             <IconButton
@@ -96,9 +105,10 @@ export const AppHeader: React.FC = () => {
                 "&:hover": {
                   backgroundColor: "rgba(255, 255, 255, 0.1)",
                 },
+                mr: -1,
               }}
             >
-              <AddIcon />
+              <AddCircleOutline sx={{ fontSize: 32 }} />
             </IconButton>
           )}
         </Toolbar>

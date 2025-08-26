@@ -20,15 +20,15 @@ export const CompletionChip: React.FC<CompletionChipProps> = ({
 }) => {
   const getCompletionColor = (percentage: number) => {
     if (percentage === 100) return "success";
-    if (percentage >= 75) return "info";
-    if (percentage >= 50) return "warning";
-    if (percentage > 0) return "error";
+    // if (percentage >= 75) return "info";
+    // if (percentage >= 50) return "warning";
+    if (percentage > 0) return "info";
     return "default";
   };
 
   const getCompletionText = (stats: typeof completionStats) => {
     if (stats.total === 0) return "No goals";
-    return `${stats.completed}/${stats.total} completed`;
+    return `${stats.completed}/${stats.total}`;
   };
 
   // Don't render if no goals
