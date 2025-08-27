@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import {
   AppBar,
   Toolbar,
-  // Typography,
   IconButton,
   Dialog,
   DialogContent,
@@ -12,16 +11,12 @@ import {
   Alert,
 } from "@mui/material";
 import { AddCircleOutline } from "@mui/icons-material";
-import { usePathname } from "next/navigation";
 import { LocalStorageService } from "../goals/services/localStorageService";
 import { GoalForm } from "../goals/components/GoalForm";
 import { DayOfWeek, GoalType } from "../goals/types";
 import Image from "next/image";
 
 export const AppHeader: React.FC = () => {
-  const pathname = usePathname();
-  const isGoalsPage = pathname === "/goals";
-
   const [addGoalDialog, setAddGoalDialog] = useState(false);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -71,9 +66,7 @@ export const AppHeader: React.FC = () => {
       handleCloseDialog();
 
       // Trigger a refresh of the goals page if we're on it
-      if (isGoalsPage) {
-        window.dispatchEvent(new CustomEvent("goalsUpdated"));
-      }
+      window.dispatchEvent(new CustomEvent("goalsUpdated"));
     } catch (error) {
       console.error("Error adding goal:", error);
       showSnackbar("Failed to add goal", "error");
@@ -96,21 +89,19 @@ export const AppHeader: React.FC = () => {
         >
           <Image src="/logo_full_wide.svg" alt="Root" width={90} height={50} />
 
-          {isGoalsPage && (
-            <IconButton
-              color="primary"
-              onClick={handleOpenDialog}
-              aria-label="add goal"
-              sx={{
-                "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                },
-                mr: -1,
-              }}
-            >
-              <AddCircleOutline sx={{ fontSize: 32 }} />
-            </IconButton>
-          )}
+          <IconButton
+            color="primary"
+            onClick={handleOpenDialog}
+            aria-label="add goal"
+            sx={{
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.1)",
+              },
+              mr: -1,
+            }}
+          >
+            <AddCircleOutline sx={{ fontSize: 32 }} />
+          </IconButton>
         </Toolbar>
       </AppBar>
 
