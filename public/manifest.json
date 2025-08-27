@@ -2,7 +2,7 @@
   "name": "Root - Goal Tracker",
   "short_name": "Root",
   "description": "Get out of your rut and start building roots. A simple goal tracker to help you build better habits.",
-  "start_url": "/goals",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#feeddb",
