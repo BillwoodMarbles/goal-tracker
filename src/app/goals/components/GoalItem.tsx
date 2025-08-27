@@ -72,6 +72,12 @@ export const GoalItem: React.FC<GoalItemProps> = ({
     return "primary.main";
   };
 
+  const getBorderColor = () => {
+    if (goal.completed) return "success.main";
+    if (goal.dailyIncremented) return "primary.main";
+    return "background.paper";
+  };
+
   return (
     <Card
       variant="outlined"
@@ -79,7 +85,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
         mb: 1.5,
         opacity: goal.completed ? 0.8 : isReadOnly ? 0.6 : 1,
         backgroundColor: isReadOnly ? "grey.50" : "background.paper",
-        borderColor: goal.completed ? "success.main" : "background.paper",
+        borderColor: getBorderColor(),
         transition: "all 0.2s ease-in-out",
         boxShadow: isReadOnly ? 1 : 2,
       }}
@@ -105,8 +111,14 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                 <Typography
                   variant="h6"
                   sx={{
-                    textDecoration: goal.completed ? "line-through" : "none",
-                    color: goal.completed ? "text.secondary" : "text.primary",
+                    textDecoration:
+                      goal.completed || goal.dailyIncremented
+                        ? "line-through"
+                        : "none",
+                    color:
+                      goal.completed || goal.dailyIncremented
+                        ? "text.secondary"
+                        : "text.primary",
                     fontWeight: goal.completed ? 400 : 500,
                     fontSize: "1.1rem",
                   }}

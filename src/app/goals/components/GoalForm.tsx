@@ -217,7 +217,7 @@ export const GoalForm: React.FC<GoalFormProps> = ({
                 value={totalSteps}
                 onChange={(_, value) => setTotalSteps(value as number)}
                 min={2}
-                max={10}
+                max={7}
                 marks
                 step={1}
                 disabled={isSubmitting || loading}

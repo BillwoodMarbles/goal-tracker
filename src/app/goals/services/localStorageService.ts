@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import {
   Goal,
   DailyGoals,
-  DailyGoalStatus,
+  WeeklyGoalDailyStatus,
   GoalsData,
   STORAGE_KEYS,
   DayOfWeek,
@@ -484,14 +484,19 @@ export class LocalStorageService {
 
     return weeklyGoals.map((goal) => {
       const status = weeklyStatus.find(
-        (ws: DailyGoalStatus) => ws.goalId === goal.id
+        (ws: WeeklyGoalDailyStatus) => ws.goalId === goal.id
       );
+
+      // Check if this goal was incremented today
+      const dailyIncremented = status?.dailyIncrements?.[date] || false;
+
       return {
         ...goal,
         completed: status?.completed || false,
         completedAt: status?.completedAt,
         completedSteps: status?.completedSteps || 0,
         stepCompletions: status?.stepCompletions || [],
+        dailyIncremented,
       };
     });
   }
@@ -553,6 +558,7 @@ export class LocalStorageService {
         completedAt: undefined,
         completedSteps: 0,
         stepCompletions: [],
+        dailyIncrements: {},
       };
       weeklyGoals.goals.push(goalStatus);
     }
@@ -624,6 +630,7 @@ export class LocalStorageService {
         completedAt: undefined,
         completedSteps: 0,
         stepCompletions: [],
+        dailyIncrements: {},
       };
       weeklyGoals.goals.push(goalStatus);
     }
@@ -658,7 +665,7 @@ export class LocalStorageService {
     return !isStepCompleted; // Return new step status
   }
 
-  // New method to increment weekly goal step completion
+  // New method to increment weekly goal step completion (one per day)
   incrementWeeklyGoalStep(
     goalId: string,
     date: string = getTodayString()
@@ -689,21 +696,66 @@ export class LocalStorageService {
     }
 
     const weeklyGoals = data.weeklyGoals[weekStart];
-    let goalStatus = weeklyGoals.goals.find((gs) => gs.goalId === goalId);
+    let goalStatus: WeeklyGoalDailyStatus | undefined = weeklyGoals.goals.find(
+      (gs) => gs.goalId === goalId
+    );
     if (!goalStatus) {
-      goalStatus = {
+      const newGoalStatus: WeeklyGoalDailyStatus = {
         goalId,
         completed: false,
         completedAt: undefined,
         completedSteps: 0,
         stepCompletions: [],
+        dailyIncrements: {},
       };
-      weeklyGoals.goals.push(goalStatus);
+      goalStatus = newGoalStatus;
+      weeklyGoals.goals.push(newGoalStatus);
+    }
+
+    // Ensure goalStatus is defined and has required properties
+    if (!goalStatus) {
+      return false;
+    }
+
+    // Type assertion to ensure goalStatus is properly typed
+    const typedGoalStatus = goalStatus as WeeklyGoalDailyStatus;
+
+    // Ensure dailyIncrements exists
+    if (!typedGoalStatus.dailyIncrements) {
+      typedGoalStatus.dailyIncrements = {};
     }
 
     // Ensure stepCompletions array is properly sized
     while (goalStatus.stepCompletions.length < goal.totalSteps) {
       goalStatus.stepCompletions.push(undefined);
+    }
+
+    // Check if already incremented today
+    const alreadyIncrementedToday = goalStatus.dailyIncrements[date] || false;
+
+    if (alreadyIncrementedToday) {
+      // If already incremented today, undo the last increment
+      const lastCompletedStepIndex = goalStatus.stepCompletions.findLastIndex(
+        (step) => step
+      );
+
+      if (lastCompletedStepIndex !== -1) {
+        goalStatus.stepCompletions[lastCompletedStepIndex] = undefined;
+        goalStatus.completedSteps = goalStatus.stepCompletions.filter(
+          (s) => s
+        ).length;
+        goalStatus.dailyIncrements[date] = false;
+
+        // Update overall completion status
+        goalStatus.completed = goalStatus.completedSteps === goal.totalSteps;
+        goalStatus.completedAt = goalStatus.completed ? new Date() : undefined;
+
+        weeklyGoals.lastUpdated = new Date();
+        this.saveGoalsData(data);
+
+        return true; // Successfully undone
+      }
+      return false;
     }
 
     // Check if all steps are already completed - if so, reset to 0
@@ -713,6 +765,7 @@ export class LocalStorageService {
       goalStatus.completedSteps = 0;
       goalStatus.completed = false;
       goalStatus.completedAt = undefined;
+      goalStatus.dailyIncrements = {}; // Clear all daily increments
 
       weeklyGoals.lastUpdated = new Date();
       this.saveGoalsData(data);
@@ -729,11 +782,12 @@ export class LocalStorageService {
       return false; // All steps are completed
     }
 
-    // Complete the next step
+    // Complete the next step and mark today as incremented
     goalStatus.stepCompletions[nextIncompleteStepIndex] = new Date();
     goalStatus.completedSteps = goalStatus.stepCompletions.filter(
       (s) => s
     ).length;
+    goalStatus.dailyIncrements[date] = true;
 
     // Update overall completion status
     goalStatus.completed = goalStatus.completedSteps === goal.totalSteps;

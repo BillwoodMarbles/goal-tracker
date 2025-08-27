@@ -60,6 +60,15 @@ export interface DailyGoalStatus {
   stepCompletions: (Date | undefined)[]; // Array of completion times for each step (undefined = incomplete)
 }
 
+export interface WeeklyGoalDailyStatus {
+  goalId: string;
+  completed: boolean;
+  completedAt?: Date;
+  completedSteps: number; // Number of steps completed (0 to totalSteps)
+  stepCompletions: (Date | undefined)[]; // Array of completion times for each step (undefined = incomplete)
+  dailyIncrements: Record<string, boolean>; // Track which days have been incremented (YYYY-MM-DD -> boolean)
+}
+
 export interface DailyGoals {
   date: string; // YYYY-MM-DD format
   goals: DailyGoalStatus[];
@@ -68,7 +77,7 @@ export interface DailyGoals {
 
 export interface WeeklyGoals {
   weekStart: string; // YYYY-MM-DD format (Sunday)
-  goals: DailyGoalStatus[]; // Reusing DailyGoalStatus for weekly goals
+  goals: WeeklyGoalDailyStatus[]; // Using WeeklyGoalDailyStatus for weekly goals
   lastUpdated: Date;
 }
 
@@ -84,6 +93,7 @@ export type GoalWithStatus = Goal & {
   completedAt?: Date;
   completedSteps: number;
   stepCompletions: (Date | undefined)[];
+  dailyIncremented?: boolean; // For weekly goals: whether incremented today
 };
 
 // Local storage keys
