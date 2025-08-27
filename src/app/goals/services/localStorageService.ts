@@ -752,13 +752,28 @@ export class LocalStorageService {
     const dailyGoalsWithStatus = goalsWithStatus.filter(
       (goal) => goal.goalType === GoalType.DAILY
     );
-    const total = dailyGoalsWithStatus.length;
-    const completed = dailyGoalsWithStatus.filter((g) => g.completed).length;
+
+    const totalGoals = dailyGoalsWithStatus.length;
+    let totalPercentage = 0;
+
+    dailyGoalsWithStatus.forEach((goal) => {
+      if (goal.isMultiStep && goal.totalSteps > 1) {
+        // For multi-step goals, calculate completion percentage within the goal
+        const goalCompletionPercentage =
+          (goal.completedSteps / goal.totalSteps) * 100;
+        // Each goal contributes equally to the total, so divide by total number of goals
+        totalPercentage += goalCompletionPercentage / totalGoals;
+      } else {
+        // For single-step goals, contribute 100% if completed, 0% if not
+        const goalCompletionPercentage = goal.completed ? 100 : 0;
+        totalPercentage += goalCompletionPercentage / totalGoals;
+      }
+    });
 
     return {
-      total,
-      completed,
-      percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+      total: totalGoals,
+      completed: dailyGoalsWithStatus.filter((g) => g.completed).length,
+      percentage: Math.round(totalPercentage),
     };
   }
 
