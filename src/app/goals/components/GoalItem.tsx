@@ -11,12 +11,14 @@ import {
   MenuItem,
   Box,
   CircularProgress,
+  Divider,
 } from "@mui/material";
 import {
   MoreVert as MoreVertIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   CheckSharp,
+  InfoSharp,
 } from "@mui/icons-material";
 import { GoalWithStatus } from "../types";
 
@@ -72,17 +74,17 @@ export const GoalItem: React.FC<GoalItemProps> = ({
 
   return (
     <Card
+      variant="outlined"
       sx={{
         mb: 1.5,
         opacity: goal.completed ? 0.8 : isReadOnly ? 0.6 : 1,
         backgroundColor: isReadOnly ? "grey.50" : "background.paper",
+        borderColor: goal.completed ? "success.main" : "background.paper",
         transition: "all 0.2s ease-in-out",
-        "&:hover": {
-          boxShadow: isReadOnly ? 1 : 2,
-        },
+        boxShadow: isReadOnly ? 1 : 2,
       }}
     >
-      <CardContent sx={{ py: 2, pr: 2, pl: 1, "&:last-child": { pb: 2 } }}>
+      <CardContent sx={{ py: 1.5, pr: 2, pl: 1, "&:last-child": { pb: 1.5 } }}>
         <Box
           display="flex"
           flexDirection={"row-reverse"}
@@ -187,7 +189,27 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                   vertical: "top",
                   horizontal: "right",
                 }}
+                slotProps={{
+                  paper: {
+                    sx: {
+                      minWidth: 250,
+                    },
+                  },
+                }}
               >
+                {goal.description && (
+                  <Box>
+                    <MenuItem
+                      sx={{ color: "text.secondary", whiteSpace: "unset" }}
+                    >
+                      <InfoSharp sx={{ mr: 1, fontSize: 20 }} />
+                      <Typography variant="body2">
+                        {goal.description}
+                      </Typography>
+                    </MenuItem>
+                    <Divider />
+                  </Box>
+                )}
                 {onEdit && (
                   <MenuItem onClick={handleEdit}>
                     <EditIcon sx={{ mr: 1, fontSize: 20 }} />
