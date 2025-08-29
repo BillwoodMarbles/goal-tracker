@@ -37,6 +37,10 @@ export const AppFooter: React.FC = () => {
         value={pathname === "/" ? "day" : pathname === "/week" ? "week" : "day"}
         onChange={handleNavigation}
         showLabels
+        sx={{
+          paddingBottom: "env(safe-area-inset-bottom)",
+          minHeight: 80,
+        }}
       >
         <BottomNavigationAction
           label="Day View"

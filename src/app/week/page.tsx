@@ -47,92 +47,104 @@ export default function WeekView() {
 
   const { selectedWeekStart, goToPrevWeek, goToNextWeek } = useWeekNavigation();
 
-  useEffect(() => {
-    const loadWeekData = () => {
-      const storageService = LocalStorageService.getInstance();
+  const loadWeekData = () => {
+    const storageService = LocalStorageService.getInstance();
 
-      // Get the start of the week (Sunday)
-      const weekStart = dayjs(selectedWeekStart).day(0); // 0 = Sunday
-      const dates: string[] = [];
+    // Get the start of the week (Sunday)
+    const weekStart = dayjs(selectedWeekStart).day(0); // 0 = Sunday
+    const dates: string[] = [];
 
-      // Generate all 7 days of the week
-      for (let i = 0; i < 7; i++) {
-        dates.push(weekStart.add(i, "day").format("YYYY-MM-DD"));
-      }
-      setWeekDates(dates);
+    // Generate all 7 days of the week
+    for (let i = 0; i < 7; i++) {
+      dates.push(weekStart.add(i, "day").format("YYYY-MM-DD"));
+    }
+    setWeekDates(dates);
 
-      // Get all goals (both daily and weekly)
-      const allGoals = storageService.getGoals();
+    // Get all goals (both daily and weekly)
+    const allGoals = storageService.getGoals();
 
-      const goalsWithDailyStatus: GoalWithDailyStatus[] = allGoals.map(
-        (goal) => {
-          const dailyStatus: {
-            [date: string]: {
-              completed: boolean;
-              completedSteps: number;
-              totalSteps: number;
-              disabled?: boolean;
-            };
-          } = {};
+    const goalsWithDailyStatus: GoalWithDailyStatus[] = allGoals.map((goal) => {
+      const dailyStatus: {
+        [date: string]: {
+          completed: boolean;
+          completedSteps: number;
+          totalSteps: number;
+          disabled?: boolean;
+        };
+      } = {};
 
-          dates.forEach((date) => {
-            const dayOfWeek = dayjs(date)
-              .format("dddd")
-              .toLowerCase() as string;
-            const isGoalActiveForDay = goal.daysOfWeek?.includes(
-              dayOfWeek as DayOfWeek
-            );
+      dates.forEach((date) => {
+        const dayOfWeek = dayjs(date).format("dddd").toLowerCase() as string;
+        const isGoalActiveForDay = goal.daysOfWeek?.includes(
+          dayOfWeek as DayOfWeek
+        );
 
-            if (goal.goalType === GoalType.DAILY && isGoalActiveForDay) {
-              // For daily goals, get the status for this specific date
-              const dailyGoals = storageService.getDailyGoals(date);
-              const goalStatus = dailyGoals.goals.find(
-                (gs) => gs.goalId === goal.id
-              );
+        if (goal.goalType === GoalType.DAILY && isGoalActiveForDay) {
+          // For daily goals, get the status for this specific date
+          const dailyGoals = storageService.getDailyGoals(date);
+          const goalStatus = dailyGoals.goals.find(
+            (gs) => gs.goalId === goal.id
+          );
 
-              dailyStatus[date] = {
-                completed: goalStatus?.completed || false,
-                completedSteps: goalStatus?.completedSteps || 0,
-                totalSteps: goal.totalSteps,
-              };
-            } else if (goal.goalType === GoalType.WEEKLY) {
-              // For weekly goals, check if this specific day has been incremented
-              const weeklyGoals = storageService.getWeeklyGoalsForDate(date);
-              const goalStatus = weeklyGoals.find((gs) => gs.id === goal.id);
+          dailyStatus[date] = {
+            completed: goalStatus?.completed || false,
+            completedSteps: goalStatus?.completedSteps || 0,
+            totalSteps: goal.totalSteps,
+          };
+        } else if (goal.goalType === GoalType.WEEKLY) {
+          // For weekly goals, check if this specific day has been incremented
+          const weeklyGoals = storageService.getWeeklyGoalsForDate(date);
+          const goalStatus = weeklyGoals.find((gs) => gs.id === goal.id);
 
-              // Check if this specific date has been incremented for this weekly goal
-              const wasIncrementedOnThisDate =
-                goalStatus?.dailyIncremented || false;
+          // Check if this specific date has been incremented for this weekly goal
+          const wasIncrementedOnThisDate =
+            goalStatus?.dailyIncremented || false;
 
-              dailyStatus[date] = {
-                completed: wasIncrementedOnThisDate,
-                completedSteps: wasIncrementedOnThisDate ? 1 : 0,
-                totalSteps: goal.totalSteps,
-              };
-            } else {
-              // Goal not active for this day
-              dailyStatus[date] = {
-                completed: false,
-                completedSteps: 0,
-                totalSteps: goal.totalSteps,
-                disabled: true,
-              };
-            }
-          });
-
-          return {
-            ...goal,
-            dailyStatus,
+          dailyStatus[date] = {
+            completed: wasIncrementedOnThisDate,
+            completedSteps: wasIncrementedOnThisDate ? 1 : 0,
+            totalSteps: goal.totalSteps,
+          };
+        } else {
+          // Goal not active for this day
+          dailyStatus[date] = {
+            completed: false,
+            completedSteps: 0,
+            totalSteps: goal.totalSteps,
+            disabled: true,
           };
         }
-      );
+      });
 
-      setGoals(goalsWithDailyStatus);
-      setLoading(false);
+      return {
+        ...goal,
+        dailyStatus,
+      };
+    });
+
+    setGoals(goalsWithDailyStatus);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadWeekData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeekStart]);
+
+  // Listen for goal updates from the header
+  useEffect(() => {
+    const handleGoalsUpdated = () => {
+      loadWeekData();
     };
 
-    loadWeekData();
-  }, [selectedWeekStart]);
+    // Listen for custom events when goals are updated
+    window.addEventListener("goalsUpdated", handleGoalsUpdated);
+
+    return () => {
+      window.removeEventListener("goalsUpdated", handleGoalsUpdated);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getProgressValue = (goal: GoalWithDailyStatus, date: string) => {
     const status = goal.dailyStatus[date];
@@ -170,7 +182,7 @@ export default function WeekView() {
     const completedDays = Object.values(goal.dailyStatus).filter(
       (status) => status.completed
     ).length;
-    return (completedDays / 7) * 100; // 7 days in a week
+    return (completedDays / goal.totalSteps) * 100; // 7 days in a week
   };
 
   const getWeeklyCompletionStats = () => {
@@ -243,13 +255,13 @@ export default function WeekView() {
           component={Paper}
           sx={{ borderRadius: 0, boxShadow: "none" }}
         >
-          <Table>
+          <Table sx={{ tableLayout: "fixed" }}>
             <TableHead>
               <TableRow>
                 <TableCell
                   sx={{
                     fontWeight: "bold",
-                    minWidth: 75,
+                    width: "30%",
                     p: 1,
                     border: "1px solid #e0e0e0",
                   }}
@@ -261,7 +273,7 @@ export default function WeekView() {
                     key={index}
                     align="center"
                     sx={{
-                      minWidth: 30,
+                      width: "10%",
                       p: 0.5,
                       height: 50,
                       border: "1px solid #e0e0e0",
@@ -275,64 +287,85 @@ export default function WeekView() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {goals.map((goal) => (
-                <React.Fragment key={goal.id}>
-                  <TableRow>
-                    <TableCell sx={{ p: 1, border: "1px solid #e0e0e0" }}>
-                      <Typography
-                        variant="body2"
+              {/* Daily Goals First */}
+              {goals
+                .filter((goal) => goal.goalType === GoalType.DAILY)
+                .map((goal) => (
+                  <React.Fragment key={goal.id}>
+                    <TableRow>
+                      <TableCell
                         sx={{
-                          fontWeight: 500,
+                          p: 1,
+                          border: "1px solid #e0e0e0",
+                          width: "30%",
                         }}
                       >
-                        {goal.title}
-                      </Typography>
-                    </TableCell>
-                    {weekDates.map((date, index) => (
-                      <TableCell key={index} align="center" sx={{ p: 0 }}>
-                        <Box
+                        <Typography
+                          variant="body2"
                           sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            minHeight: 50,
-                            backgroundColor: goal.dailyStatus[date]?.disabled
-                              ? "grey.100"
-                              : "transparent",
+                            fontWeight: 500,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: "100%",
                           }}
                         >
-                          {goal.dailyStatus[date]?.disabled ? (
-                            <Box
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "50%",
-                                backgroundColor: "grey.300",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                —
-                              </Typography>
-                            </Box>
-                          ) : (
-                            <Box position="relative">
-                              <CircularProgress
-                                variant="determinate"
-                                value={getProgressValue(goal, date)}
-                                size={32}
+                          {goal.title}
+                        </Typography>
+                      </TableCell>
+                      {weekDates.map((date, index) => (
+                        <TableCell key={index} align="center" sx={{ p: 0 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              minHeight: 50,
+                              backgroundColor: goal.dailyStatus[date]?.disabled
+                                ? "grey.100"
+                                : "transparent",
+                            }}
+                          >
+                            {goal.dailyStatus[date]?.disabled ? (
+                              <Box
                                 sx={{
-                                  color: getProgressColor(goal, date),
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "50%",
+                                  backgroundColor: "grey.300",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  margin: "auto",
                                 }}
-                              />
-                              {goal.isMultiStep &&
-                                goal.totalSteps > 1 &&
-                                goal.goalType !== GoalType.WEEKLY && (
+                              >
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  —
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Box
+                                position="relative"
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  width: "100%",
+                                  height: "100%",
+                                }}
+                              >
+                                <CircularProgress
+                                  variant="determinate"
+                                  value={getProgressValue(goal, date)}
+                                  size={32}
+                                  sx={{
+                                    color: getProgressColor(goal, date),
+                                  }}
+                                />
+                                {goal.isMultiStep && goal.totalSteps > 1 && (
                                   <Typography
                                     variant="caption"
                                     sx={{
@@ -348,37 +381,127 @@ export default function WeekView() {
                                       null}
                                   </Typography>
                                 )}
-                            </Box>
-                          )}
-                        </Box>
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                  {goal.goalType === GoalType.WEEKLY && (
-                    <TableRow>
-                      <TableCell sx={{ p: 0 }}>
-                        <Box sx={{ height: 4 }} />
-                      </TableCell>
-                      <TableCell colSpan={7} sx={{ p: 0 }}>
-                        <Box sx={{ p: 1 }}>
-                          <LinearProgress
-                            variant="determinate"
-                            value={getWeeklyGoalProgress(goal)}
-                            sx={{
-                              height: 4,
-                              borderRadius: 2,
-                              backgroundColor: "grey.200",
-                              "& .MuiLinearProgress-bar": {
-                                backgroundColor: "success.main",
-                              },
-                            }}
-                          />
-                        </Box>
-                      </TableCell>
+                              </Box>
+                            )}
+                          </Box>
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  )}
-                </React.Fragment>
-              ))}
+                  </React.Fragment>
+                ))}
+
+              {/* Weekly Goals Second */}
+              {goals
+                .filter((goal) => goal.goalType === GoalType.WEEKLY)
+                .map((goal) => (
+                  <TableRow key={goal.id}>
+                    <TableCell
+                      sx={{
+                        p: 1,
+                        border: "1px solid #e0e0e0",
+                        width: "30%",
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 500,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: "100%",
+                        }}
+                      >
+                        {goal.title}
+                      </Typography>
+                    </TableCell>
+                    <TableCell colSpan={7} sx={{ p: 0, position: "relative" }}>
+                      <Box
+                        sx={{
+                          p: 1,
+                          position: "relative",
+                          minHeight: 50,
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        <LinearProgress
+                          variant="determinate"
+                          value={getWeeklyGoalProgress(goal)}
+                          sx={{
+                            height: 4,
+                            borderRadius: 2,
+                            backgroundColor: "grey.200",
+                            width: "100%",
+                            zIndex: 1,
+                            "& .MuiLinearProgress-bar": {
+                              backgroundColor: "success.main",
+                            },
+                          }}
+                        />
+                        {/* Daily status circles positioned absolutely on top */}
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            px: 1,
+                            zIndex: 2,
+                          }}
+                        >
+                          {weekDates.map((date, index) => (
+                            <Box
+                              key={index}
+                              sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                width: 32,
+                                height: 32,
+                              }}
+                            >
+                              {goal.dailyStatus[date]?.disabled ? (
+                                <Box
+                                  sx={{
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: "50%",
+                                    backgroundColor: "grey.300",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                  }}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ fontSize: "0.6rem" }}
+                                  >
+                                    —
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                <CircularProgress
+                                  variant="determinate"
+                                  value={getProgressValue(goal, date)}
+                                  size={24}
+                                  sx={{
+                                    color: getProgressColor(goal, date),
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </TableContainer>
