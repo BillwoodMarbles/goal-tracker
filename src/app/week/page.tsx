@@ -357,6 +357,33 @@ export default function WeekView() {
                                   height: "100%",
                                 }}
                               >
+                                {goal.dailyStatus[date]?.completed && (
+                                  <Box
+                                    sx={{
+                                      position: "absolute",
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: "50%",
+                                      backgroundColor: "rgba(76, 175, 80, 0.2)",
+                                    }}
+                                  />
+                                )}
+                                {!goal.dailyStatus[date]?.completed &&
+                                  goal.isMultiStep &&
+                                  goal.totalSteps > 1 &&
+                                  goal.dailyStatus[date]?.completedSteps >
+                                    0 && (
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: "50%",
+                                        backgroundColor:
+                                          "rgba(33, 150, 243, 0.2)",
+                                      }}
+                                    />
+                                  )}
                                 <CircularProgress
                                   variant="determinate"
                                   value={getProgressValue(goal, date)}
@@ -486,14 +513,37 @@ export default function WeekView() {
                                   </Typography>
                                 </Box>
                               ) : (
-                                <CircularProgress
-                                  variant="determinate"
-                                  value={getProgressValue(goal, date)}
-                                  size={24}
+                                <Box
+                                  position="relative"
                                   sx={{
-                                    color: getProgressColor(goal, date),
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: "100%",
+                                    height: "100%",
                                   }}
-                                />
+                                >
+                                  {goal.dailyStatus[date]?.completed && (
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: "50%",
+                                        backgroundColor:
+                                          "rgba(76, 175, 80, 0.2)",
+                                      }}
+                                    />
+                                  )}
+                                  <CircularProgress
+                                    variant="determinate"
+                                    value={getProgressValue(goal, date)}
+                                    size={24}
+                                    sx={{
+                                      color: getProgressColor(goal, date),
+                                    }}
+                                  />
+                                </Box>
                               )}
                             </Box>
                           ))}
