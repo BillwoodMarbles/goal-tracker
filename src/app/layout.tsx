@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppHeader } from "./components/AppHeader";
 import { AppFooter } from "./components/AppFooter";
+import { DynamoDBInitializer } from "./components/DynamoDBInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -112,6 +113,7 @@ export default function RootLayout({
           flexDirection: "column",
         }}
       >
+        <DynamoDBInitializer />
         <AppHeader />
 
         {children}

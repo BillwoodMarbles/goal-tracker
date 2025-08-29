@@ -21,14 +21,11 @@ export const useGoals = (selectedDate?: string) => {
   const loadGoals = useCallback(() => {
     try {
       setLoading(true);
-      const goalsWithStatus = storageService.getGoalsWithStatus(currentDate);
-      const weeklyGoalsWithStatus =
-        storageService.getWeeklyGoalsForDate(currentDate);
-      const inactiveGoalsWithStatus =
-        storageService.getInactiveGoalsForDate(currentDate);
-      setGoals(goalsWithStatus);
-      setWeeklyGoals(weeklyGoalsWithStatus);
-      setInactiveGoals(inactiveGoalsWithStatus);
+      // Use batch loading method to get all data for the date
+      const dateData = storageService.getDateData(currentDate);
+      setGoals(dateData.goals);
+      setWeeklyGoals(dateData.weeklyGoals);
+      setInactiveGoals(dateData.inactiveGoals);
       setError(null);
     } catch (err) {
       setError("Failed to load goals");

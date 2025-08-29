@@ -9,7 +9,15 @@ import {
   DAYS_OF_WEEK,
   getDayOfWeekFromIndex,
   GoalType,
+  GoalWithStatus,
 } from "../types";
+
+// Cache interface for performance optimization
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
 
 // Utility functions for date handling
 export const formatDate = (date: Date): string => {
@@ -28,6 +36,13 @@ export const getCurrentDayOfWeek = (): DayOfWeek => {
 // Local storage service for goals data
 export class LocalStorageService {
   private static instance: LocalStorageService;
+  private cache = new Map<string, CacheEntry<unknown>>();
+  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
+  private performanceMetrics = {
+    cacheHits: 0,
+    cacheMisses: 0,
+    localStorageCalls: 0,
+  };
 
   static getInstance(): LocalStorageService {
     if (!LocalStorageService.instance) {
@@ -36,7 +51,64 @@ export class LocalStorageService {
     return LocalStorageService.instance;
   }
 
-  private getGoalsData(): GoalsData {
+  // Cache management methods
+  private getCachedData<T>(
+    key: string,
+    ttl: number = this.DEFAULT_TTL
+  ): T | null {
+    const entry = this.cache.get(key);
+    if (entry && Date.now() - entry.timestamp < ttl) {
+      this.performanceMetrics.cacheHits++;
+      return entry.data as T;
+    }
+    this.performanceMetrics.cacheMisses++;
+    return null;
+  }
+
+  private setCachedData<T>(
+    key: string,
+    data: T,
+    ttl: number = this.DEFAULT_TTL
+  ): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
+  }
+
+  private invalidateCache(pattern?: string): void {
+    if (pattern) {
+      // Invalidate cache entries matching pattern
+      for (const key of this.cache.keys()) {
+        if (key.includes(pattern)) {
+          this.cache.delete(key);
+        }
+      }
+    } else {
+      this.cache.clear();
+    }
+  }
+
+  // Performance monitoring
+  logPerformance(): void {
+    const totalRequests =
+      this.performanceMetrics.cacheHits + this.performanceMetrics.cacheMisses;
+    if (totalRequests > 0) {
+      console.log("LocalStorage Performance Metrics:", {
+        cacheHitRate: `${(
+          (this.performanceMetrics.cacheHits / totalRequests) *
+          100
+        ).toFixed(1)}%`,
+        localStorageCalls: this.performanceMetrics.localStorageCalls,
+        cacheHits: this.performanceMetrics.cacheHits,
+        cacheMisses: this.performanceMetrics.cacheMisses,
+      });
+    }
+  }
+
+  public getGoalsData(): GoalsData {
+    this.performanceMetrics.localStorageCalls++;
     try {
       const data = localStorage.getItem(STORAGE_KEYS.GOALS_DATA);
       if (!data) {
@@ -102,11 +174,34 @@ export class LocalStorageService {
     }
   }
 
-  private saveGoalsData(data: GoalsData): void {
+  public saveGoalsData(data: GoalsData): void {
+    this.performanceMetrics.localStorageCalls++;
     try {
       localStorage.setItem(STORAGE_KEYS.GOALS_DATA, JSON.stringify(data));
+
+      // Trigger DynamoDB sync if hybrid storage is available
+      this.syncToDynamoDB(data);
     } catch (error) {
       console.error("Error saving goals data to localStorage:", error);
+    }
+  }
+
+  // Sync data to DynamoDB
+  private async syncToDynamoDB(data: GoalsData): Promise<void> {
+    try {
+      // Try to get hybrid storage service
+      const hybridStorageService = (
+        globalThis as {
+          hybridStorageService?: {
+            saveData: (data: GoalsData) => Promise<boolean>;
+          };
+        }
+      ).hybridStorageService;
+      if (hybridStorageService) {
+        await hybridStorageService.saveData(data);
+      }
+    } catch (error) {
+      console.warn("Failed to sync to DynamoDB:", error);
     }
   }
 
@@ -134,6 +229,11 @@ export class LocalStorageService {
 
     data.goals.push(newGoal);
     this.saveGoalsData(data);
+
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
+
     return newGoal;
   }
 
@@ -170,6 +270,11 @@ export class LocalStorageService {
 
     data.goals[goalIndex] = { ...data.goals[goalIndex], ...updates };
     this.saveGoalsData(data);
+
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
+
     return data.goals[goalIndex];
   }
 
@@ -182,6 +287,11 @@ export class LocalStorageService {
     // Soft delete by setting isActive to false
     data.goals[goalIndex].isActive = false;
     this.saveGoalsData(data);
+
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
+
     return true;
   }
 
@@ -279,6 +389,10 @@ export class LocalStorageService {
     dailyGoals.lastUpdated = new Date();
     this.saveGoalsData(data);
 
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
+
     return goalStatus.completed;
   }
 
@@ -349,6 +463,10 @@ export class LocalStorageService {
     dailyGoals.lastUpdated = new Date();
     this.saveGoalsData(data);
 
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
+
     return !isStepCompleted; // Return new step status
   }
 
@@ -399,6 +517,10 @@ export class LocalStorageService {
       dailyGoals.lastUpdated = new Date();
       this.saveGoalsData(data);
 
+      // Invalidate relevant cache
+      this.invalidateCache("week_data_");
+      this.invalidateCache("date_data_");
+
       return true; // Successfully reset
     }
 
@@ -423,6 +545,10 @@ export class LocalStorageService {
 
     dailyGoals.lastUpdated = new Date();
     this.saveGoalsData(data);
+
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
 
     return true; // Successfully incremented
   }
@@ -592,6 +718,10 @@ export class LocalStorageService {
     weeklyGoals.lastUpdated = new Date();
     this.saveGoalsData(data);
 
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
+
     return goalStatus.completed;
   }
 
@@ -661,6 +791,10 @@ export class LocalStorageService {
 
     weeklyGoals.lastUpdated = new Date();
     this.saveGoalsData(data);
+
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
 
     return !isStepCompleted; // Return new step status
   }
@@ -753,6 +887,10 @@ export class LocalStorageService {
         weeklyGoals.lastUpdated = new Date();
         this.saveGoalsData(data);
 
+        // Invalidate relevant cache
+        this.invalidateCache("week_data_");
+        this.invalidateCache("date_data_");
+
         return true; // Successfully undone
       }
       return false;
@@ -769,6 +907,10 @@ export class LocalStorageService {
 
       weeklyGoals.lastUpdated = new Date();
       this.saveGoalsData(data);
+
+      // Invalidate relevant cache
+      this.invalidateCache("week_data_");
+      this.invalidateCache("date_data_");
 
       return true; // Successfully reset
     }
@@ -795,6 +937,10 @@ export class LocalStorageService {
 
     weeklyGoals.lastUpdated = new Date();
     this.saveGoalsData(data);
+
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
 
     return true; // Successfully incremented
   }
@@ -834,5 +980,80 @@ export class LocalStorageService {
   // Clear all data (for testing/reset purposes)
   clearAllData(): void {
     localStorage.removeItem(STORAGE_KEYS.GOALS_DATA);
+  }
+
+  // Batch loading methods
+  getWeekData(weekStart: string): {
+    goals: Goal[];
+    dailyGoals: { [date: string]: DailyGoals };
+    weeklyGoals: { [date: string]: GoalWithStatus[] };
+    weekDates: string[];
+  } {
+    const cacheKey = `week_data_${weekStart}`;
+    const cached = this.getCachedData<{
+      goals: Goal[];
+      dailyGoals: { [date: string]: DailyGoals };
+      weeklyGoals: { [date: string]: GoalWithStatus[] };
+      weekDates: string[];
+    }>(cacheKey);
+    if (cached) return cached;
+
+    const weekDates = this.generateWeekDates(weekStart);
+    const goals = this.getGoals();
+
+    // Batch load all daily goals for the week
+    const dailyGoals: { [date: string]: DailyGoals } = {};
+    weekDates.forEach((date) => {
+      dailyGoals[date] = this.getDailyGoals(date);
+    });
+
+    // Batch load all weekly goals for the week
+    const weeklyGoals: { [date: string]: GoalWithStatus[] } = {};
+    weekDates.forEach((date) => {
+      weeklyGoals[date] = this.getWeeklyGoalsForDate(date);
+    });
+
+    const weekData = {
+      goals,
+      dailyGoals,
+      weeklyGoals,
+      weekDates,
+    };
+
+    this.setCachedData(cacheKey, weekData);
+    return weekData;
+  }
+
+  getDateData(date: string): {
+    goals: GoalWithStatus[];
+    weeklyGoals: GoalWithStatus[];
+    inactiveGoals: GoalWithStatus[];
+  } {
+    const cacheKey = `date_data_${date}`;
+    const cached = this.getCachedData<{
+      goals: GoalWithStatus[];
+      weeklyGoals: GoalWithStatus[];
+      inactiveGoals: GoalWithStatus[];
+    }>(cacheKey);
+    if (cached) return cached;
+
+    const goals = this.getGoalsWithStatus(date);
+    const weeklyGoals = this.getWeeklyGoalsForDate(date);
+    const inactiveGoals = this.getInactiveGoalsForDate(date);
+
+    const dateData = { goals, weeklyGoals, inactiveGoals };
+    this.setCachedData(cacheKey, dateData);
+    return dateData;
+  }
+
+  private generateWeekDates(weekStart: string): string[] {
+    const dates: string[] = [];
+    const startDate = dayjs(weekStart).day(0); // 0 = Sunday
+
+    for (let i = 0; i < 7; i++) {
+      dates.push(startDate.add(i, "day").format("YYYY-MM-DD"));
+    }
+
+    return dates;
   }
 }

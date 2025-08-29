@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Container,
   Typography,
   Box,
   Paper,
@@ -40,91 +39,85 @@ interface GoalWithDailyStatus {
   };
 }
 
-export default function WeekView() {
+const WeekView = React.memo(() => {
   const [goals, setGoals] = useState<GoalWithDailyStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [weekDates, setWeekDates] = useState<string[]>([]);
 
   const { selectedWeekStart, goToPrevWeek, goToNextWeek } = useWeekNavigation();
 
-  const loadWeekData = () => {
+  const loadWeekData = useCallback(() => {
     const storageService = LocalStorageService.getInstance();
 
-    // Get the start of the week (Sunday)
-    const weekStart = dayjs(selectedWeekStart).day(0); // 0 = Sunday
-    const dates: string[] = [];
+    // Use batch loading method to get all week data
+    const weekData = storageService.getWeekData(selectedWeekStart);
+    setWeekDates(weekData.weekDates);
 
-    // Generate all 7 days of the week
-    for (let i = 0; i < 7; i++) {
-      dates.push(weekStart.add(i, "day").format("YYYY-MM-DD"));
-    }
-    setWeekDates(dates);
+    // Process goals with pre-loaded data
+    const goalsWithDailyStatus: GoalWithDailyStatus[] = weekData.goals.map(
+      (goal) => {
+        const dailyStatus: {
+          [date: string]: {
+            completed: boolean;
+            completedSteps: number;
+            totalSteps: number;
+            disabled?: boolean;
+          };
+        } = {};
 
-    // Get all goals (both daily and weekly)
-    const allGoals = storageService.getGoals();
-
-    const goalsWithDailyStatus: GoalWithDailyStatus[] = allGoals.map((goal) => {
-      const dailyStatus: {
-        [date: string]: {
-          completed: boolean;
-          completedSteps: number;
-          totalSteps: number;
-          disabled?: boolean;
-        };
-      } = {};
-
-      dates.forEach((date) => {
-        const dayOfWeek = dayjs(date).format("dddd").toLowerCase() as string;
-        const isGoalActiveForDay = goal.daysOfWeek?.includes(
-          dayOfWeek as DayOfWeek
-        );
-
-        if (goal.goalType === GoalType.DAILY && isGoalActiveForDay) {
-          // For daily goals, get the status for this specific date
-          const dailyGoals = storageService.getDailyGoals(date);
-          const goalStatus = dailyGoals.goals.find(
-            (gs) => gs.goalId === goal.id
+        weekData.weekDates.forEach((date) => {
+          const dayOfWeek = dayjs(date).format("dddd").toLowerCase() as string;
+          const isGoalActiveForDay = goal.daysOfWeek?.includes(
+            dayOfWeek as DayOfWeek
           );
 
-          dailyStatus[date] = {
-            completed: goalStatus?.completed || false,
-            completedSteps: goalStatus?.completedSteps || 0,
-            totalSteps: goal.totalSteps,
-          };
-        } else if (goal.goalType === GoalType.WEEKLY) {
-          // For weekly goals, check if this specific day has been incremented
-          const weeklyGoals = storageService.getWeeklyGoalsForDate(date);
-          const goalStatus = weeklyGoals.find((gs) => gs.id === goal.id);
+          if (goal.goalType === GoalType.DAILY && isGoalActiveForDay) {
+            // Use pre-loaded daily goals data
+            const dailyGoals = weekData.dailyGoals[date];
+            const goalStatus = dailyGoals.goals.find(
+              (gs) => gs.goalId === goal.id
+            );
 
-          // Check if this specific date has been incremented for this weekly goal
-          const wasIncrementedOnThisDate =
-            goalStatus?.dailyIncremented || false;
+            dailyStatus[date] = {
+              completed: goalStatus?.completed || false,
+              completedSteps: goalStatus?.completedSteps || 0,
+              totalSteps: goal.totalSteps,
+            };
+          } else if (goal.goalType === GoalType.WEEKLY) {
+            // Use pre-loaded weekly goals data
+            const weeklyGoals = weekData.weeklyGoals[date];
+            const goalStatus = weeklyGoals.find((gs) => gs.id === goal.id);
 
-          dailyStatus[date] = {
-            completed: wasIncrementedOnThisDate,
-            completedSteps: wasIncrementedOnThisDate ? 1 : 0,
-            totalSteps: goal.totalSteps,
-          };
-        } else {
-          // Goal not active for this day
-          dailyStatus[date] = {
-            completed: false,
-            completedSteps: 0,
-            totalSteps: goal.totalSteps,
-            disabled: true,
-          };
-        }
-      });
+            // Check if this specific date has been incremented for this weekly goal
+            const wasIncrementedOnThisDate =
+              goalStatus?.dailyIncremented || false;
 
-      return {
-        ...goal,
-        dailyStatus,
-      };
-    });
+            dailyStatus[date] = {
+              completed: wasIncrementedOnThisDate,
+              completedSteps: wasIncrementedOnThisDate ? 1 : 0,
+              totalSteps: goal.totalSteps,
+            };
+          } else {
+            // Goal not active for this day
+            dailyStatus[date] = {
+              completed: false,
+              completedSteps: 0,
+              totalSteps: goal.totalSteps,
+              disabled: true,
+            };
+          }
+        });
+
+        return {
+          ...goal,
+          dailyStatus,
+        };
+      }
+    );
 
     setGoals(goalsWithDailyStatus);
     setLoading(false);
-  };
+  }, [selectedWeekStart]);
 
   useEffect(() => {
     loadWeekData();
@@ -146,46 +139,57 @@ export default function WeekView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getProgressValue = (goal: GoalWithDailyStatus, date: string) => {
-    const status = goal.dailyStatus[date];
-    if (!status || status.disabled) return 0;
+  // Memoize expensive calculations
+  const getProgressValue = useCallback(
+    (goal: GoalWithDailyStatus, date: string) => {
+      const status = goal.dailyStatus[date];
+      if (!status || status.disabled) return 0;
 
-    if (goal.goalType === GoalType.WEEKLY) {
-      return status.completed ? 100 : 0;
-    } else if (goal.isMultiStep && goal.totalSteps > 1) {
-      return (status.completedSteps / status.totalSteps) * 100;
-    } else {
-      return status.completed ? 100 : 0;
-    }
-  };
+      if (goal.goalType === GoalType.WEEKLY) {
+        return status.completed ? 100 : 0;
+      } else if (goal.isMultiStep && goal.totalSteps > 1) {
+        return (status.completedSteps / status.totalSteps) * 100;
+      } else {
+        return status.completed ? 100 : 0;
+      }
+    },
+    []
+  );
 
-  const getProgressColor = (goal: GoalWithDailyStatus, date: string) => {
-    const status = goal.dailyStatus[date];
-    if (!status || status.disabled) return "grey.400";
-    if (status.completed) return "success.main";
-    return "primary.main";
-  };
+  const getProgressColor = useCallback(
+    (goal: GoalWithDailyStatus, date: string) => {
+      const status = goal.dailyStatus[date];
+      if (!status || status.disabled) return "grey.400";
+      if (status.completed) return "success.main";
+      return "primary.main";
+    },
+    []
+  );
 
-  const getWeeklyGoalProgress = (goal: GoalWithDailyStatus) => {
-    if (goal.goalType !== GoalType.WEEKLY) return 0;
+  const getWeeklyGoalProgress = useCallback(
+    (goal: GoalWithDailyStatus) => {
+      if (goal.goalType !== GoalType.WEEKLY) return 0;
 
-    // Check if the goal is fully completed for the week
-    const storageService = LocalStorageService.getInstance();
-    const weeklyGoals = storageService.getWeeklyGoalsForDate(selectedWeekStart);
-    const goalStatus = weeklyGoals.find((gs) => gs.id === goal.id);
+      // Check if the goal is fully completed for the week
+      const storageService = LocalStorageService.getInstance();
+      const weeklyGoals =
+        storageService.getWeeklyGoalsForDate(selectedWeekStart);
+      const goalStatus = weeklyGoals.find((gs) => gs.id === goal.id);
 
-    if (goalStatus?.completed) {
-      return 100; // Show 100% if the weekly goal is fully completed
-    }
+      if (goalStatus?.completed) {
+        return 100; // Show 100% if the weekly goal is fully completed
+      }
 
-    // Otherwise, show progress based on days incremented
-    const completedDays = Object.values(goal.dailyStatus).filter(
-      (status) => status.completed
-    ).length;
-    return (completedDays / goal.totalSteps) * 100; // 7 days in a week
-  };
+      // Otherwise, show progress based on days incremented
+      const completedDays = Object.values(goal.dailyStatus).filter(
+        (status) => status.completed
+      ).length;
+      return (completedDays / goal.totalSteps) * 100; // 7 days in a week
+    },
+    [selectedWeekStart]
+  );
 
-  const getWeeklyCompletionStats = () => {
+  const getWeeklyCompletionStats = useMemo(() => {
     let totalPossibleCompletions = 0;
     let totalActualCompletions = 0;
 
@@ -225,15 +229,13 @@ export default function WeekView() {
             )
           : 0,
     };
-  };
+  }, [goals, weekDates, selectedWeekStart]);
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Loading...
-        </Typography>
-      </Container>
+      <Box display="flex" justifyContent="center" alignItems="center" py={4}>
+        <CircularProgress />
+      </Box>
     );
   }
 
@@ -243,7 +245,7 @@ export default function WeekView() {
         selectedWeekStart={selectedWeekStart}
         onPrevWeek={goToPrevWeek}
         onNextWeek={goToNextWeek}
-        completionStats={getWeeklyCompletionStats()}
+        completionStats={getWeeklyCompletionStats}
       />
 
       {goals.length === 0 ? (
@@ -558,4 +560,8 @@ export default function WeekView() {
       )}
     </Box>
   );
-}
+});
+
+WeekView.displayName = "WeekView";
+
+export default WeekView;

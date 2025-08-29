@@ -21,7 +21,7 @@ import { DayOfWeek, DAYS_OF_WEEK, GoalType } from "./types";
 import { GoalsList } from "./components/GoalsList";
 import { DateNavigation } from "./components/DateNavigation";
 
-const Goals = () => {
+const Goals = React.memo(() => {
   const {
     selectedDate,
     // goToToday,
@@ -350,6 +350,8 @@ const Goals = () => {
       </Container>
     </Box>
   );
-};
+});
+
+Goals.displayName = "Goals";
 
 export default Goals;
