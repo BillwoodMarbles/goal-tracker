@@ -430,7 +430,7 @@ export default function WeekView() {
                           value={getWeeklyGoalProgress(goal)}
                           sx={{
                             height: 4,
-                            borderRadius: 2,
+                            borderRadius: 3,
                             backgroundColor: "grey.200",
                             width: "100%",
                             zIndex: 1,
@@ -450,7 +450,7 @@ export default function WeekView() {
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
-                            px: 1,
+                            px: 0.5,
                             zIndex: 2,
                           }}
                         >
