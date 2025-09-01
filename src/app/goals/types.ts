@@ -56,7 +56,7 @@ export interface DailyGoalStatus {
   goalId: string;
   completed: boolean;
   completedAt?: Date;
-  completedSteps: number; // Number of steps completed (0 to totalSteps)
+  completedSteps: number; // Number of steps completed (can exceed totalSteps for over-completion)
   stepCompletions: (Date | undefined)[]; // Array of completion times for each step (undefined = incomplete)
 }
 
@@ -64,7 +64,7 @@ export interface WeeklyGoalDailyStatus {
   goalId: string;
   completed: boolean;
   completedAt?: Date;
-  completedSteps: number; // Number of steps completed (0 to totalSteps)
+  completedSteps: number; // Number of steps completed (can exceed totalSteps for over-completion)
   stepCompletions: (Date | undefined)[]; // Array of completion times for each step (undefined = incomplete)
   dailyIncrements: Record<string, boolean>; // Track which days have been incremented (YYYY-MM-DD -> boolean)
 }

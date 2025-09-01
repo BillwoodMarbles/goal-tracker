@@ -20,7 +20,7 @@ import {
   CheckSharp,
   InfoSharp,
 } from "@mui/icons-material";
-import { GoalWithStatus } from "../types";
+import { GoalWithStatus, GoalType } from "../types";
 
 interface GoalItemProps {
   goal: GoalWithStatus;
@@ -68,11 +68,25 @@ export const GoalItem: React.FC<GoalItemProps> = ({
 
   const getStepCounterColor = () => {
     if (goal.completedSteps === 0) return "text.secondary";
+
+    // For weekly goals, show blue when day is incremented
+    if (goal.goalType === GoalType.WEEKLY && goal.dailyIncremented) {
+      return "primary.main";
+    }
+
     if (goal.completed) return "success.main";
     return "primary.main";
   };
 
   const getBorderColor = () => {
+    // For weekly goals, show daily increment status even when weekly goal is completed
+    if (goal.goalType === GoalType.WEEKLY) {
+      if (goal.dailyIncremented) return "primary.main";
+      if (goal.completed) return "success.main";
+      return "background.paper";
+    }
+
+    // For daily goals, use the original logic
     if (goal.completed) return "success.main";
     if (goal.dailyIncremented) return "primary.main";
     return "background.paper";
@@ -116,7 +130,9 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                         ? "line-through"
                         : "none",
                     color:
-                      goal.completed || goal.dailyIncremented
+                      goal.goalType === GoalType.WEEKLY && goal.dailyIncremented
+                        ? "text.secondary"
+                        : goal.completed || goal.dailyIncremented
                         ? "text.secondary"
                         : "text.primary",
                     fontWeight: goal.completed ? 400 : 500,

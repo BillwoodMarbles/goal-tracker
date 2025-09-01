@@ -539,8 +539,8 @@ export class LocalStorageService {
       (s) => s
     ).length;
 
-    // Update overall completion status
-    goalStatus.completed = goalStatus.completedSteps === goal.totalSteps;
+    // Update overall completion status - goal is completed when it reaches totalSteps
+    goalStatus.completed = goalStatus.completedSteps >= goal.totalSteps;
     goalStatus.completedAt = goalStatus.completed ? new Date() : undefined;
 
     dailyGoals.lastUpdated = new Date();
@@ -765,8 +765,10 @@ export class LocalStorageService {
       weeklyGoals.goals.push(goalStatus);
     }
 
-    // Ensure stepCompletions array is properly sized
-    while (goalStatus.stepCompletions.length < goal.totalSteps) {
+    // Ensure stepCompletions array can accommodate more steps than totalSteps
+    // Allow for up to 2x the total steps to handle over-completion
+    const maxSteps = Math.max(goal.totalSteps * 2, stepIndex + 1);
+    while (goalStatus.stepCompletions.length < maxSteps) {
       goalStatus.stepCompletions.push(undefined);
     }
 
@@ -776,7 +778,9 @@ export class LocalStorageService {
     if (isStepCompleted) {
       // Uncomplete the step
       goalStatus.stepCompletions[stepIndex] = undefined;
-      goalStatus.completedSteps = Math.max(0, goalStatus.completedSteps - 1);
+      goalStatus.completedSteps = goalStatus.stepCompletions.filter(
+        (s) => s
+      ).length;
     } else {
       // Complete the step
       goalStatus.stepCompletions[stepIndex] = new Date();
@@ -785,8 +789,9 @@ export class LocalStorageService {
       ).length;
     }
 
-    // Update overall completion status
-    goalStatus.completed = goalStatus.completedSteps === goal.totalSteps;
+    // Update overall completion status - goal is completed when it reaches totalSteps
+    // but can continue to be incremented beyond that
+    goalStatus.completed = goalStatus.completedSteps >= goal.totalSteps;
     goalStatus.completedAt = goalStatus.completed ? new Date() : undefined;
 
     weeklyGoals.lastUpdated = new Date();
@@ -880,8 +885,8 @@ export class LocalStorageService {
         ).length;
         goalStatus.dailyIncrements[date] = false;
 
-        // Update overall completion status
-        goalStatus.completed = goalStatus.completedSteps === goal.totalSteps;
+        // Update overall completion status - goal is completed when it reaches totalSteps
+        goalStatus.completed = goalStatus.completedSteps >= goal.totalSteps;
         goalStatus.completedAt = goalStatus.completed ? new Date() : undefined;
 
         weeklyGoals.lastUpdated = new Date();
@@ -896,14 +901,18 @@ export class LocalStorageService {
       return false;
     }
 
-    // Check if all steps are already completed - if so, reset to 0
+    // Allow over-completion: if all steps are completed, add a new step
     if (goalStatus.completedSteps >= goal.totalSteps) {
-      // Reset all steps to incomplete
-      goalStatus.stepCompletions = new Array(goal.totalSteps).fill(undefined);
-      goalStatus.completedSteps = 0;
-      goalStatus.completed = false;
-      goalStatus.completedAt = undefined;
-      goalStatus.dailyIncrements = {}; // Clear all daily increments
+      // Add a new step beyond the totalSteps limit
+      goalStatus.stepCompletions.push(new Date());
+      goalStatus.completedSteps = goalStatus.stepCompletions.filter(
+        (s) => s
+      ).length;
+      goalStatus.dailyIncrements[date] = true;
+
+      // Update overall completion status - goal is completed when it reaches totalSteps
+      goalStatus.completed = goalStatus.completedSteps >= goal.totalSteps;
+      goalStatus.completedAt = goalStatus.completed ? new Date() : undefined;
 
       weeklyGoals.lastUpdated = new Date();
       this.saveGoalsData(data);
@@ -912,7 +921,7 @@ export class LocalStorageService {
       this.invalidateCache("week_data_");
       this.invalidateCache("date_data_");
 
-      return true; // Successfully reset
+      return true; // Successfully added over-completion step
     }
 
     // Find the next incomplete step
@@ -931,8 +940,8 @@ export class LocalStorageService {
     ).length;
     goalStatus.dailyIncrements[date] = true;
 
-    // Update overall completion status
-    goalStatus.completed = goalStatus.completedSteps === goal.totalSteps;
+    // Update overall completion status - goal is completed when it reaches totalSteps
+    goalStatus.completed = goalStatus.completedSteps >= goal.totalSteps;
     goalStatus.completedAt = goalStatus.completed ? new Date() : undefined;
 
     weeklyGoals.lastUpdated = new Date();
