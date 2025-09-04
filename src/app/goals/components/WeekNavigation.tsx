@@ -53,7 +53,7 @@ export const WeekNavigation: React.FC<WeekNavigationProps> = ({
   }, []);
 
   return (
-    <Box sx={{ mb: 2, p: 0, pb: 0.5, backgroundColor: "white" }}>
+    <Box sx={{ p: 0, pb: 0.5, backgroundColor: "white" }}>
       <Box display="flex" alignItems="center" gap={1} sx={{ py: 1, px: 2 }}>
         <IconButton onClick={onPrevWeek} size="small">
           <ChevronLeftIcon />

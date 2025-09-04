@@ -160,8 +160,29 @@ const WeekView = React.memo(() => {
     (goal: GoalWithDailyStatus, date: string) => {
       const status = goal.dailyStatus[date];
       if (!status || status.disabled) return "grey.400";
+
+      // Check if this is a failed daily goal (active but not completed and no steps taken)
+      if (goal.goalType === GoalType.DAILY && !status.disabled) {
+        const isPastDate = dayjs(date).isBefore(dayjs(), "day");
+        if (isPastDate && !status.completed && status.completedSteps === 0) {
+          return "error.main"; // Red for failed goals
+        }
+      }
+
       if (status.completed) return "success.main";
       return "primary.main";
+    },
+    []
+  );
+
+  const isGoalFailed = useCallback(
+    (goal: GoalWithDailyStatus, date: string) => {
+      const status = goal.dailyStatus[date];
+      if (!status || status.disabled || goal.goalType !== GoalType.DAILY)
+        return false;
+
+      const isPastDate = dayjs(date).isBefore(dayjs(), "day");
+      return isPastDate && !status.completed && status.completedSteps === 0;
     },
     []
   );
@@ -240,7 +261,7 @@ const WeekView = React.memo(() => {
   }
 
   return (
-    <Box height="100%" flexGrow={1}>
+    <Box height="100%" flexGrow={1} display="flex" flexDirection="column">
       <WeekNavigation
         selectedWeekStart={selectedWeekStart}
         onPrevWeek={goToPrevWeek}
@@ -255,7 +276,7 @@ const WeekView = React.memo(() => {
       ) : (
         <TableContainer
           component={Paper}
-          sx={{ borderRadius: 0, boxShadow: "none" }}
+          sx={{ borderRadius: 0, boxShadow: "none", my: 2 }}
         >
           <Table sx={{ tableLayout: "fixed" }}>
             <TableHead>
@@ -409,6 +430,17 @@ const WeekView = React.memo(() => {
                                     {goal.dailyStatus[date]?.completedSteps ||
                                       null}
                                   </Typography>
+                                )}
+                                {isGoalFailed(goal, date) && (
+                                  <Box
+                                    sx={{
+                                      position: "absolute",
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: "50%",
+                                      backgroundColor: "rgba(244, 67, 54, 0.2)",
+                                    }}
+                                  />
                                 )}
                               </Box>
                             )}

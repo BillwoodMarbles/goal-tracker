@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Box } from "@mui/material";
 import { AppHeader } from "./components/AppHeader";
 import { AppFooter } from "./components/AppFooter";
 import { DynamoDBInitializer } from "./components/DynamoDBInitializer";
@@ -107,17 +108,28 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{
-          paddingBottom: "80px",
-          minHeight: "100vh",
+          margin: 0,
+          padding: 0,
+          height: "100vh",
           display: "flex",
           flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         <DynamoDBInitializer />
         <AppHeader />
 
-        {children}
-
+        <Box
+          component="main"
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+          }}
+        >
+          {children}
+        </Box>
         <AppFooter />
       </body>
     </html>

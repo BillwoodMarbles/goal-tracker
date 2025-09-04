@@ -233,7 +233,14 @@ const Goals = () => {
   const completionStats = getStats();
 
   return (
-    <Box>
+    <Box
+      sx={{
+        height: "100%",
+        flexGrow: 1,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {/* {!isToday && (
         <Box
           display="flex"
@@ -267,7 +274,17 @@ const Goals = () => {
         completionStats={completionStats}
       />
 
-      <Container component="main" sx={{ py: 1 }}>
+      <Container
+        component="main"
+        sx={{
+          py: 2,
+          overflow: "scroll",
+          display: "flex",
+          flexDirection: "column",
+          flexGrow: 1,
+          height: "100%",
+        }}
+      >
         <GoalsList
           goals={goals}
           weeklyGoals={weeklyGoals}
