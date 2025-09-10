@@ -13,6 +13,11 @@ export const useGoals = (selectedDate?: string) => {
   const [inactiveGoals, setInactiveGoals] = useState<GoalWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cachedDateData, setCachedDateData] = useState<{
+    goals: GoalWithStatus[];
+    weeklyGoals: GoalWithStatus[];
+    inactiveGoals: GoalWithStatus[];
+  } | null>(null);
 
   const currentDate = selectedDate || getTodayString();
   const storageService = LocalStorageService.getInstance();
@@ -26,6 +31,7 @@ export const useGoals = (selectedDate?: string) => {
       setGoals(dateData.goals);
       setWeeklyGoals(dateData.weeklyGoals);
       setInactiveGoals(dateData.inactiveGoals);
+      setCachedDateData(dateData); // Cache the data for stats calculations
       setError(null);
     } catch (err) {
       setError("Failed to load goals");
@@ -64,6 +70,8 @@ export const useGoals = (selectedDate?: string) => {
           totalSteps,
           goalType
         );
+        // Invalidate cache and reload data
+        storageService.invalidateAllCache();
         loadGoals(); // Refresh the goals list
         setError(null);
         return newGoal;
@@ -87,6 +95,8 @@ export const useGoals = (selectedDate?: string) => {
             goalId,
             currentDate
           );
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
           loadGoals(); // Refresh the goals list
           setError(null);
           return newCompletionStatus;
@@ -95,6 +105,8 @@ export const useGoals = (selectedDate?: string) => {
             goalId,
             currentDate
           );
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
           loadGoals(); // Refresh the goals list
           setError(null);
           return newCompletionStatus;
@@ -120,6 +132,8 @@ export const useGoals = (selectedDate?: string) => {
             stepIndex,
             currentDate
           );
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
           loadGoals(); // Refresh the goals list
           setError(null);
           return newStepStatus;
@@ -129,6 +143,8 @@ export const useGoals = (selectedDate?: string) => {
             stepIndex,
             currentDate
           );
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
           loadGoals(); // Refresh the goals list
           setError(null);
           return newStepStatus;
@@ -153,11 +169,15 @@ export const useGoals = (selectedDate?: string) => {
             goalId,
             currentDate
           );
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
           loadGoals(); // Refresh the goals list
           setError(null);
           return success;
         } else {
           const success = storageService.incrementGoalStep(goalId, currentDate);
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
           loadGoals(); // Refresh the goals list
           setError(null);
           return success;
@@ -177,6 +197,8 @@ export const useGoals = (selectedDate?: string) => {
       try {
         const updatedGoal = storageService.updateGoal(goalId, updates);
         if (updatedGoal) {
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
           loadGoals(); // Refresh the goals list
           setError(null);
         } else {
@@ -198,6 +220,8 @@ export const useGoals = (selectedDate?: string) => {
       try {
         const success = storageService.deleteGoal(goalId);
         if (success) {
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
           loadGoals(); // Refresh the goals list
           setError(null);
         } else {
@@ -216,12 +240,16 @@ export const useGoals = (selectedDate?: string) => {
   // Get completion statistics for the current date
   const getStats = useCallback(() => {
     try {
+      // Use cached data if available, otherwise fall back to direct call
+      if (cachedDateData) {
+        return storageService.getCompletionStatsFromData(cachedDateData.goals);
+      }
       return storageService.getCompletionStats(currentDate);
     } catch (err) {
       console.error("Error getting stats:", err);
       return { total: 0, completed: 0, percentage: 0 };
     }
-  }, [storageService, currentDate]);
+  }, [storageService, currentDate, cachedDateData]);
 
   // Clear error
   const clearError = useCallback(() => {

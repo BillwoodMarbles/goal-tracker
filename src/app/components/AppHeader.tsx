@@ -10,7 +10,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import { AddCircleOutline } from "@mui/icons-material";
+import { AddCircleOutline, BarChart } from "@mui/icons-material";
 import { LocalStorageService } from "../goals/services/localStorageService";
 import { GoalForm } from "../goals/components/GoalForm";
 import { DayOfWeek, GoalType } from "../goals/types";
@@ -44,11 +44,11 @@ export const AppHeader: React.FC = () => {
     setAddGoalDialog(false);
   };
 
-  // const handlePerformanceLog = () => {
-  //   const storageService = LocalStorageService.getInstance();
-  //   storageService.logPerformance();
-  //   showSnackbar("Performance metrics logged to console");
-  // };
+  const handlePerformanceLog = () => {
+    const storageService = LocalStorageService.getInstance();
+    storageService.logPerformance();
+    showSnackbar("Performance metrics logged to console");
+  };
 
   const handleSubmitGoal = async (
     title: string,
@@ -97,6 +97,13 @@ export const AppHeader: React.FC = () => {
           <Image src="/logo_full_wide.svg" alt="Root" width={90} height={50} />
 
           <div>
+            <IconButton
+              color="primary"
+              onClick={handlePerformanceLog}
+              aria-label="performance log"
+            >
+              <BarChart />
+            </IconButton>
             <UserDropdown />
             <IconButton
               color="primary"

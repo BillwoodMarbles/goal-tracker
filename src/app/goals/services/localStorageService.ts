@@ -90,6 +90,12 @@ export class LocalStorageService {
     }
   }
 
+  // Public method to invalidate cache when goals are updated
+  public invalidateAllCache(): void {
+    this.cache.clear();
+    console.log("Cache invalidated - all data will be reloaded on next access");
+  }
+
   // Performance monitoring
   logPerformance(): void {
     const totalRequests =
@@ -957,6 +963,11 @@ export class LocalStorageService {
   // Get completion statistics (only for daily goals)
   getCompletionStats(date: string = getTodayString()) {
     const goalsWithStatus = this.getGoalsWithStatus(date);
+    return this.getCompletionStatsFromData(goalsWithStatus);
+  }
+
+  // Get completion statistics from pre-loaded data
+  getCompletionStatsFromData(goalsWithStatus: GoalWithStatus[]) {
     // Only count daily goals for completion stats
     const dailyGoalsWithStatus = goalsWithStatus.filter(
       (goal) => goal.goalType === GoalType.DAILY
@@ -1007,19 +1018,21 @@ export class LocalStorageService {
     }>(cacheKey);
     if (cached) return cached;
 
+    // Load data once instead of multiple times
+    const data = this.getGoalsData();
     const weekDates = this.generateWeekDates(weekStart);
-    const goals = this.getGoals();
+    const goals = data.goals.filter((goal) => goal.isActive);
 
-    // Batch load all daily goals for the week
+    // Batch load all daily goals for the week using pre-loaded data
     const dailyGoals: { [date: string]: DailyGoals } = {};
     weekDates.forEach((date) => {
-      dailyGoals[date] = this.getDailyGoals(date);
+      dailyGoals[date] = this.getDailyGoalsFromData(data, date);
     });
 
-    // Batch load all weekly goals for the week
+    // Batch load all weekly goals for the week using pre-loaded data
     const weeklyGoals: { [date: string]: GoalWithStatus[] } = {};
     weekDates.forEach((date) => {
-      weeklyGoals[date] = this.getWeeklyGoalsForDate(date);
+      weeklyGoals[date] = this.getWeeklyGoalsForDateFromData(data, date);
     });
 
     const weekData = {
@@ -1046,9 +1059,11 @@ export class LocalStorageService {
     }>(cacheKey);
     if (cached) return cached;
 
-    const goals = this.getGoalsWithStatus(date);
-    const weeklyGoals = this.getWeeklyGoalsForDate(date);
-    const inactiveGoals = this.getInactiveGoalsForDate(date);
+    // Load data once instead of multiple times
+    const data = this.getGoalsData();
+    const goals = this.getGoalsWithStatusFromData(data, date);
+    const weeklyGoals = this.getWeeklyGoalsForDateFromData(data, date);
+    const inactiveGoals = this.getInactiveGoalsForDateFromData(data, date);
 
     const dateData = { goals, weeklyGoals, inactiveGoals };
     this.setCachedData(cacheKey, dateData);
@@ -1064,5 +1079,142 @@ export class LocalStorageService {
     }
 
     return dates;
+  }
+
+  // Helper methods that accept pre-loaded data to avoid multiple getGoalsData calls
+  private getDailyGoalsFromData(data: GoalsData, date: string): DailyGoals {
+    if (!data.dailyGoals[date]) {
+      // Get day of week for the given date
+      const dayIndex = dayjs(date).day();
+      const dayOfWeek = getDayOfWeekFromIndex(dayIndex);
+
+      // Initialize daily goals for the date with goals active on that day
+      const goalsForDay = data.goals.filter(
+        (goal) =>
+          goal.isActive &&
+          goal.goalType === GoalType.DAILY &&
+          goal.daysOfWeek?.includes(dayOfWeek)
+      );
+      data.dailyGoals[date] = {
+        date,
+        goals: goalsForDay.map((goal) => ({
+          goalId: goal.id,
+          completed: false,
+          completedSteps: 0,
+          stepCompletions: [],
+        })),
+        lastUpdated: new Date(),
+      };
+      // Note: We don't save here since this is a read-only operation for batch loading
+    }
+
+    return data.dailyGoals[date];
+  }
+
+  private getWeeklyGoalsForDateFromData(
+    data: GoalsData,
+    date: string
+  ): GoalWithStatus[] {
+    // Get all active weekly goals (weekly goals are always active)
+    const weeklyGoals = data.goals.filter(
+      (goal) => goal.isActive && goal.goalType === GoalType.WEEKLY
+    );
+
+    // Get weekly status for the current week
+    const weeklyStatus = this.getWeeklyGoalsStatusFromData(data, date);
+
+    return weeklyGoals.map((goal) => {
+      const status = weeklyStatus.find(
+        (ws: WeeklyGoalDailyStatus) => ws.goalId === goal.id
+      );
+
+      // Check if this goal was incremented today
+      const dailyIncremented = status?.dailyIncrements?.[date] || false;
+
+      return {
+        ...goal,
+        completed: status?.completed || false,
+        completedAt: status?.completedAt,
+        completedSteps: status?.completedSteps || 0,
+        stepCompletions: status?.stepCompletions || [],
+        dailyIncremented,
+      };
+    });
+  }
+
+  private getWeeklyGoalsStatusFromData(
+    data: GoalsData,
+    date: string
+  ): WeeklyGoalDailyStatus[] {
+    const weekStart = this.getWeekStart(date);
+
+    if (!data.weeklyGoals) {
+      data.weeklyGoals = {};
+    }
+
+    if (!data.weeklyGoals[weekStart]) {
+      data.weeklyGoals[weekStart] = {
+        weekStart,
+        goals: [],
+        lastUpdated: new Date(),
+      };
+      // Note: We don't save here since this is a read-only operation for batch loading
+    }
+
+    return data.weeklyGoals[weekStart].goals;
+  }
+
+  private getGoalsWithStatusFromData(
+    data: GoalsData,
+    date: string
+  ): GoalWithStatus[] {
+    // Get day of week for the given date
+    const dayIndex = dayjs(date).day();
+    const dayOfWeek = getDayOfWeekFromIndex(dayIndex);
+
+    // Get goals that should be active on this day of the week
+    const goalsForDay = data.goals.filter(
+      (goal) =>
+        goal.isActive &&
+        goal.goalType === GoalType.DAILY &&
+        goal.daysOfWeek?.includes(dayOfWeek)
+    );
+    const dailyGoals = this.getDailyGoalsFromData(data, date);
+
+    return goalsForDay.map((goal) => {
+      const status = dailyGoals.goals.find((gs) => gs.goalId === goal.id);
+      return {
+        ...goal,
+        completed: status?.completed || false,
+        completedAt: status?.completedAt,
+        completedSteps: status?.completedSteps || 0,
+        stepCompletions: status?.stepCompletions || [],
+      };
+    });
+  }
+
+  private getInactiveGoalsForDateFromData(
+    data: GoalsData,
+    date: string
+  ): GoalWithStatus[] {
+    // Get day of week for the given date
+    const dayIndex = dayjs(date).day();
+    const dayOfWeek = getDayOfWeekFromIndex(dayIndex);
+
+    // Get all active goals
+    const allGoals = data.goals.filter((goal) => goal.isActive);
+
+    // Filter out goals that are active on this day (both daily and weekly)
+    const inactiveGoals = allGoals.filter(
+      (goal) => !goal.daysOfWeek?.includes(dayOfWeek)
+    );
+
+    return inactiveGoals.map((goal) => ({
+      ...goal,
+      completed: false, // Always show as incomplete since they're not active today
+      completedAt: undefined,
+      completedSteps: 0,
+      stepCompletions: [],
+    }));
   }
 }

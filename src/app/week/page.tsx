@@ -16,7 +16,14 @@ import {
   TableRow,
 } from "@mui/material";
 import { LocalStorageService } from "../goals/services/localStorageService";
-import { GoalType, DAYS_OF_WEEK, DayOfWeek } from "../goals/types";
+import {
+  GoalType,
+  DAYS_OF_WEEK,
+  DayOfWeek,
+  Goal,
+  DailyGoals,
+  GoalWithStatus,
+} from "../goals/types";
 import { WeekNavigation } from "../goals/components/WeekNavigation";
 import { useWeekNavigation } from "../goals/hooks/useWeekNavigation";
 import dayjs from "dayjs";
@@ -43,6 +50,12 @@ const WeekView = React.memo(() => {
   const [goals, setGoals] = useState<GoalWithDailyStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [weekDates, setWeekDates] = useState<string[]>([]);
+  const [cachedWeekData, setCachedWeekData] = useState<{
+    goals: Goal[];
+    dailyGoals: { [date: string]: DailyGoals };
+    weeklyGoals: { [date: string]: GoalWithStatus[] };
+    weekDates: string[];
+  } | null>(null);
 
   const { selectedWeekStart, goToPrevWeek, goToNextWeek } = useWeekNavigation();
 
@@ -52,6 +65,7 @@ const WeekView = React.memo(() => {
     // Use batch loading method to get all week data
     const weekData = storageService.getWeekData(selectedWeekStart);
     setWeekDates(weekData.weekDates);
+    setCachedWeekData(weekData); // Store the cached data
 
     // Process goals with pre-loaded data
     const goalsWithDailyStatus: GoalWithDailyStatus[] = weekData.goals.map(
@@ -127,6 +141,9 @@ const WeekView = React.memo(() => {
   // Listen for goal updates from the header
   useEffect(() => {
     const handleGoalsUpdated = () => {
+      // Invalidate cache and reload data
+      const storageService = LocalStorageService.getInstance();
+      storageService.invalidateAllCache();
       loadWeekData();
     };
 
@@ -189,12 +206,10 @@ const WeekView = React.memo(() => {
 
   const getWeeklyGoalProgress = useCallback(
     (goal: GoalWithDailyStatus) => {
-      if (goal.goalType !== GoalType.WEEKLY) return 0;
+      if (goal.goalType !== GoalType.WEEKLY || !cachedWeekData) return 0;
 
-      // Check if the goal is fully completed for the week
-      const storageService = LocalStorageService.getInstance();
-      const weeklyGoals =
-        storageService.getWeeklyGoalsForDate(selectedWeekStart);
+      // Use cached weekly goals data instead of making new calls
+      const weeklyGoals = cachedWeekData.weeklyGoals[selectedWeekStart] || [];
       const goalStatus = weeklyGoals.find((gs) => gs.id === goal.id);
 
       if (goalStatus?.completed) {
@@ -207,19 +222,23 @@ const WeekView = React.memo(() => {
       ).length;
       return (completedDays / goal.totalSteps) * 100; // 7 days in a week
     },
-    [selectedWeekStart]
+    [cachedWeekData, selectedWeekStart]
   );
 
   const getWeeklyCompletionStats = useMemo(() => {
     let totalPossibleCompletions = 0;
     let totalActualCompletions = 0;
 
+    if (!cachedWeekData) {
+      return { total: 0, completed: 0, percentage: 0 };
+    }
+
     goals.forEach((goal) => {
       if (goal.goalType === GoalType.WEEKLY) {
         // For weekly goals, count as 1 completion if completed
-        const storageService = LocalStorageService.getInstance();
+        // Use cached weekly goals data instead of making new calls
         const weeklyGoalsData =
-          storageService.getWeeklyGoalsForDate(selectedWeekStart);
+          cachedWeekData.weeklyGoals[selectedWeekStart] || [];
         const goalStatus = weeklyGoalsData.find((gs) => gs.id === goal.id);
 
         totalPossibleCompletions += 1;
@@ -250,7 +269,7 @@ const WeekView = React.memo(() => {
             )
           : 0,
     };
-  }, [goals, weekDates, selectedWeekStart]);
+  }, [goals, weekDates, selectedWeekStart, cachedWeekData]);
 
   if (loading) {
     return (
