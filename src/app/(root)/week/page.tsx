@@ -15,7 +15,7 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
-import { LocalStorageService } from "../goals/services/localStorageService";
+import { LocalStorageService } from "../../goals/services/localStorageService";
 import {
   GoalType,
   DAYS_OF_WEEK,
@@ -23,9 +23,9 @@ import {
   Goal,
   DailyGoals,
   GoalWithStatus,
-} from "../goals/types";
-import { WeekNavigation } from "../goals/components/WeekNavigation";
-import { useWeekNavigation } from "../goals/hooks/useWeekNavigation";
+} from "../../goals/types";
+import { WeekNavigation } from "../../goals/components/WeekNavigation";
+import { useWeekNavigation } from "../../goals/hooks/useWeekNavigation";
 import dayjs from "dayjs";
 
 interface GoalWithDailyStatus {

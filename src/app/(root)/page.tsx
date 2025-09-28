@@ -13,13 +13,13 @@ import {
   Button,
   Container,
 } from "@mui/material";
-import { useGoals } from "./goals/hooks/useGoals";
-import { useDateNavigation } from "./goals/hooks/useDateNavigation";
-import { GoalForm } from "./goals/components/GoalForm";
-import { DayOfWeek, DAYS_OF_WEEK, GoalType } from "./goals/types";
+import { useGoals } from "../goals/hooks/useGoals";
+import { useDateNavigation } from "../goals/hooks/useDateNavigation";
+import { GoalForm } from "../goals/components/GoalForm";
+import { DayOfWeek, DAYS_OF_WEEK, GoalType } from "../goals/types";
 
-import { GoalsList } from "./goals/components/GoalsList";
-import { DateNavigation } from "./goals/components/DateNavigation";
+import { GoalsList } from "../goals/components/GoalsList";
+import { DateNavigation } from "../goals/components/DateNavigation";
 
 const Goals = () => {
   const {

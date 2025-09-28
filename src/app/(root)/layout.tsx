@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import "../globals.css";
 import { Box } from "@mui/material";
-import { AppHeader } from "./components/AppHeader";
-import { AppFooter } from "./components/AppFooter";
-import { DynamoDBInitializer } from "./components/DynamoDBInitializer";
+import { AppHeader } from "../components/AppHeader";
+import { AppFooter } from "../components/AppFooter";
+import { DynamoDBInitializer } from "../components/DynamoDBInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
