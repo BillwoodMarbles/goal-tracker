@@ -22,12 +22,12 @@ export const InventoryPage: React.FC = () => {
     setActiveTab("places");
   };
 
-  const handleTabChange = (tab: "places" | "things") => {
-    setActiveTab(tab);
-    if (tab === "places") {
-      setSelectedLocation(undefined);
-    }
-  };
+  //   const handleTabChange = (tab: "places" | "things") => {
+  //     setActiveTab(tab);
+  //     if (tab === "places") {
+  //       setSelectedLocation(undefined);
+  //     }
+  //   };
 
   return (
     <Box sx={{ p: 2 }}>

@@ -17,6 +17,7 @@ interface GoalsListProps {
   onIncrementGoalStep?: (goalId: string) => void;
   onEditGoal?: (goalId: string) => void;
   onDeleteGoal?: (goalId: string) => void;
+  onSnoozeGoal?: (goalId: string) => void;
   isReadOnly?: boolean;
   completionStats: {
     total: number;
@@ -36,6 +37,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
   onIncrementGoalStep,
   onEditGoal,
   onDeleteGoal,
+  onSnoozeGoal,
   isReadOnly = false,
 }) => {
   if (loading) {
@@ -103,6 +105,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               onIncrementStep={onIncrementGoalStep}
               onEdit={onEditGoal}
               onDelete={onDeleteGoal}
+              onSnooze={onSnoozeGoal}
               isReadOnly={isReadOnly}
             />
           ))}
@@ -160,6 +163,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               onIncrementStep={onIncrementGoalStep}
               onEdit={onEditGoal}
               onDelete={onDeleteGoal}
+              onSnooze={onSnoozeGoal}
               isReadOnly={isReadOnly}
             />
           ))}
@@ -197,6 +201,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               onIncrementStep={() => {}} // No-op for inactive goals
               onEdit={onEditGoal}
               onDelete={onDeleteGoal}
+              onSnooze={onSnoozeGoal}
               isReadOnly={true}
             />
           ))}

@@ -251,6 +251,30 @@ export const useGoals = (selectedDate?: string) => {
     }
   }, [storageService, currentDate, cachedDateData]);
 
+  // Snooze a goal
+  const snoozeGoal = useCallback(
+    async (goalId: string): Promise<boolean> => {
+      try {
+        const success = storageService.snoozeGoal(goalId, currentDate);
+
+        if (success) {
+          // Invalidate cache and reload data
+          storageService.invalidateAllCache();
+          loadGoals(); // Refresh the goals list
+          setError(null);
+        } else {
+          setError("Failed to snooze goal");
+        }
+        return success;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (err) {
+        setError("Failed to snooze goal");
+        return false;
+      }
+    },
+    [storageService, currentDate, loadGoals]
+  );
+
   // Clear error
   const clearError = useCallback(() => {
     setError(null);
@@ -268,6 +292,7 @@ export const useGoals = (selectedDate?: string) => {
     incrementGoalStep,
     updateGoal,
     deleteGoal,
+    snoozeGoal,
     getStats,
     clearError,
     refresh: loadGoals,

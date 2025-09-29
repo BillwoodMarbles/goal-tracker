@@ -19,6 +19,7 @@ import {
   Delete as DeleteIcon,
   CheckSharp,
   InfoSharp,
+  Snooze as SnoozeIcon,
 } from "@mui/icons-material";
 import { GoalWithStatus, GoalType } from "../types";
 
@@ -29,6 +30,7 @@ interface GoalItemProps {
   onIncrementStep?: (goalId: string) => void;
   onEdit?: (goalId: string) => void;
   onDelete?: (goalId: string) => void;
+  onSnooze?: (goalId: string) => void;
   isReadOnly?: boolean;
 }
 
@@ -38,6 +40,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
   onIncrementStep,
   onEdit,
   onDelete,
+  onSnooze,
   isReadOnly = false,
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -60,6 +63,11 @@ export const GoalItem: React.FC<GoalItemProps> = ({
     handleMenuClose();
   };
 
+  const handleSnooze = () => {
+    onSnooze?.(goal.id);
+    handleMenuClose();
+  };
+
   const handleToggle = () => {
     if (!isReadOnly) {
       onToggle(goal.id);
@@ -79,6 +87,9 @@ export const GoalItem: React.FC<GoalItemProps> = ({
   };
 
   const getBorderColor = () => {
+    // If snoozed, show grey border
+    if (goal.snoozed) return "grey.400";
+
     // For weekly goals, show daily increment status even when weekly goal is completed
     if (goal.goalType === GoalType.WEEKLY) {
       if (goal.dailyIncremented) return "primary.main";
@@ -97,7 +108,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
       variant="outlined"
       sx={{
         mb: 1.5,
-        opacity: goal.completed ? 0.8 : isReadOnly ? 0.6 : 1,
+        opacity: goal.completed || goal.snoozed ? 0.8 : isReadOnly ? 0.6 : 1,
         backgroundColor: isReadOnly ? "grey.50" : "background.paper",
         borderColor: getBorderColor(),
         transition: "all 0.2s ease-in-out",
@@ -126,16 +137,18 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                   variant="h6"
                   sx={{
                     textDecoration:
-                      goal.completed || goal.dailyIncremented
+                      goal.completed || goal.dailyIncremented || goal.snoozed
                         ? "line-through"
                         : "none",
-                    color:
-                      goal.goalType === GoalType.WEEKLY && goal.dailyIncremented
-                        ? "text.secondary"
-                        : goal.completed || goal.dailyIncremented
-                        ? "text.secondary"
-                        : "text.primary",
-                    fontWeight: goal.completed ? 400 : 500,
+                    color: goal.snoozed
+                      ? "text.secondary"
+                      : goal.goalType === GoalType.WEEKLY &&
+                        goal.dailyIncremented
+                      ? "text.secondary"
+                      : goal.completed || goal.dailyIncremented
+                      ? "text.secondary"
+                      : "text.primary",
+                    fontWeight: goal.completed || goal.snoozed ? 400 : 500,
                     fontSize: "1.1rem",
                   }}
                 >
@@ -144,7 +157,7 @@ export const GoalItem: React.FC<GoalItemProps> = ({
               </Box>
             </Box>
             <Box display="flex" alignItems="center" gap={1}>
-              {goal.isMultiStep && goal.totalSteps > 1 && (
+              {goal.isMultiStep && goal.totalSteps > 1 && !goal.snoozed && (
                 <Typography
                   variant="body1"
                   color={getStepCounterColor()}
@@ -158,48 +171,66 @@ export const GoalItem: React.FC<GoalItemProps> = ({
               )}
 
               <Box position="relative">
-                <CircularProgress
-                  variant="determinate"
-                  value={
-                    !goal.isMultiStep || goal.totalSteps === 1
-                      ? goal.completed
-                        ? 100
-                        : 0
-                      : (goal.completedSteps / goal.totalSteps) * 100
-                  }
-                  size={42}
-                  sx={{
-                    color: goal.completed ? "success.main" : "primary.main",
-                    position: "absolute",
-                    top: "0",
-                    left: "0",
-                  }}
-                />
-                <Checkbox
-                  checked={goal.completed}
-                  onChange={
-                    !goal.isMultiStep || goal.totalSteps === 1
-                      ? handleToggle
-                      : () => onIncrementStep?.(goal.id)
-                  }
-                  disabled={isReadOnly}
-                  icon={<CheckSharp />}
-                  size="medium"
-                  checkedIcon={<CheckSharp />}
-                  sx={{
-                    color: "primary.main",
-                    "&.Mui-checked": {
-                      color: "white",
-                      backgroundColor: "success.main",
-                    },
-                    transition: "all 0.3s ease-in-out",
-                  }}
-                />
+                {goal.snoozed ? (
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    width={42}
+                    height={42}
+                    sx={{
+                      color: "grey.500",
+                      cursor: "default",
+                    }}
+                  >
+                    <SnoozeIcon />
+                  </Box>
+                ) : (
+                  <>
+                    <CircularProgress
+                      variant="determinate"
+                      value={
+                        !goal.isMultiStep || goal.totalSteps === 1
+                          ? goal.completed
+                            ? 100
+                            : 0
+                          : (goal.completedSteps / goal.totalSteps) * 100
+                      }
+                      size={42}
+                      sx={{
+                        color: goal.completed ? "success.main" : "primary.main",
+                        position: "absolute",
+                        top: "0",
+                        left: "0",
+                      }}
+                    />
+                    <Checkbox
+                      checked={goal.completed}
+                      onChange={
+                        !goal.isMultiStep || goal.totalSteps === 1
+                          ? handleToggle
+                          : () => onIncrementStep?.(goal.id)
+                      }
+                      disabled={isReadOnly}
+                      icon={<CheckSharp />}
+                      size="medium"
+                      checkedIcon={<CheckSharp />}
+                      sx={{
+                        color: "primary.main",
+                        "&.Mui-checked": {
+                          color: "white",
+                          backgroundColor: "success.main",
+                        },
+                        transition: "all 0.3s ease-in-out",
+                      }}
+                    />
+                  </>
+                )}
               </Box>
             </Box>
           </Box>
 
-          {(onEdit || onDelete) && (
+          {(onEdit || onDelete || onSnooze) && (
             <Box>
               <IconButton size="small" onClick={handleMenuOpen} sx={{}}>
                 <MoreVertIcon />
@@ -237,6 +268,13 @@ export const GoalItem: React.FC<GoalItemProps> = ({
                     </MenuItem>
                     <Divider />
                   </Box>
+                )}
+                {/* Original snooze condition */}
+                {onSnooze && goal.goalType === GoalType.DAILY && (
+                  <MenuItem onClick={handleSnooze}>
+                    <SnoozeIcon sx={{ mr: 1, fontSize: 20 }} />
+                    {goal.snoozed ? "Unsnooze" : "Snooze"}
+                  </MenuItem>
                 )}
                 {onEdit && (
                   <MenuItem onClick={handleEdit}>

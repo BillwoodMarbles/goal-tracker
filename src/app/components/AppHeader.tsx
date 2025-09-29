@@ -11,9 +11,9 @@ import {
   Alert,
 } from "@mui/material";
 import { AddCircleOutline, BarChart } from "@mui/icons-material";
-import { LocalStorageService } from "../goals/services/localStorageService";
-import { GoalForm } from "../goals/components/GoalForm";
-import { DayOfWeek, GoalType } from "../goals/types";
+import { LocalStorageService } from "../(root)/goals/services/localStorageService";
+import { GoalForm } from "../(root)/goals/components/GoalForm";
+import { DayOfWeek, GoalType } from "../(root)/goals/types";
 import { UserDropdown } from "./UserDropdown";
 import Image from "next/image";
 

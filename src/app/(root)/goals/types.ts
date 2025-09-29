@@ -58,6 +58,7 @@ export interface DailyGoalStatus {
   completedAt?: Date;
   completedSteps: number; // Number of steps completed (can exceed totalSteps for over-completion)
   stepCompletions: (Date | undefined)[]; // Array of completion times for each step (undefined = incomplete)
+  snoozed?: boolean; // Whether the goal is snoozed for this day
 }
 
 export interface WeeklyGoalDailyStatus {
@@ -94,6 +95,7 @@ export type GoalWithStatus = Goal & {
   completedSteps: number;
   stepCompletions: (Date | undefined)[];
   dailyIncremented?: boolean; // For weekly goals: whether incremented today
+  snoozed?: boolean; // Whether the goal is snoozed for this day
 };
 
 // Local storage keys

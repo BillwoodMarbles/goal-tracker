@@ -1,7 +1,7 @@
-import { LocalStorageService } from "../goals/services/localStorageService";
+import { LocalStorageService } from "../(root)/goals/services/localStorageService";
 import { DynamoDBService, DynamoDBConfig } from "./dynamoDBService";
 import { UserService } from "./userService";
-import { GoalsData } from "../goals/types";
+import { GoalsData } from "../(root)/goals/types";
 
 export interface SyncStatus {
   lastSync: string;

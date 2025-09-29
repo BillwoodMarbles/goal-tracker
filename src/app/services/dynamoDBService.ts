@@ -7,7 +7,7 @@ import {
   DeleteCommand,
   UpdateCommandInput,
 } from "@aws-sdk/lib-dynamodb";
-import { GoalsData } from "../goals/types";
+import { GoalsData } from "../(root)/goals/types";
 
 export interface DynamoDBConfig {
   region: string;

@@ -186,7 +186,7 @@ export class LocalStorageService {
       localStorage.setItem(STORAGE_KEYS.GOALS_DATA, JSON.stringify(data));
 
       // Trigger DynamoDB sync if hybrid storage is available
-      this.syncToDynamoDB(data);
+      // this.syncToDynamoDB(data);
     } catch (error) {
       console.error("Error saving goals data to localStorage:", error);
     }
@@ -319,6 +319,7 @@ export class LocalStorageService {
           completed: false,
           completedSteps: 0,
           stepCompletions: [],
+          snoozed: false,
         })),
         lastUpdated: new Date(),
       };
@@ -577,6 +578,7 @@ export class LocalStorageService {
         completedAt: status?.completedAt,
         completedSteps: status?.completedSteps || 0,
         stepCompletions: status?.stepCompletions || [],
+        snoozed: status?.snoozed || false,
       };
     });
   }
@@ -997,6 +999,60 @@ export class LocalStorageService {
     };
   }
 
+  // Snooze a goal for a specific date
+  snoozeGoal(goalId: string, date: string = getTodayString()): boolean {
+    const data = this.getGoalsData();
+    const goal = data.goals.find((g) => g.id === goalId);
+
+    if (!goal || goal.goalType === GoalType.WEEKLY) {
+      return false; // Can't snooze weekly goals
+    }
+
+    // Ensure daily goals exist for the date
+    if (!data.dailyGoals[date]) {
+      this.getDailyGoals(date);
+    }
+
+    const dailyGoals = data.dailyGoals[date];
+    let goalStatusIndex = dailyGoals.goals.findIndex(
+      (gs) => gs.goalId === goalId
+    );
+
+    // If goal not found in daily goals, add it
+    if (goalStatusIndex === -1) {
+      dailyGoals.goals.push({
+        goalId,
+        completed: false,
+        completedSteps: 0,
+        stepCompletions: [],
+        snoozed: false,
+      });
+      goalStatusIndex = dailyGoals.goals.length - 1;
+    }
+
+    const goalStatus = dailyGoals.goals[goalStatusIndex];
+
+    // Toggle snooze status
+    goalStatus.snoozed = !goalStatus.snoozed;
+
+    // If goal is being snoozed, reset completion status
+    if (goalStatus.snoozed) {
+      goalStatus.completed = false;
+      goalStatus.completedAt = undefined;
+      goalStatus.completedSteps = 0;
+      goalStatus.stepCompletions = [];
+    }
+
+    dailyGoals.lastUpdated = new Date();
+    this.saveGoalsData(data);
+
+    // Invalidate relevant cache
+    this.invalidateCache("week_data_");
+    this.invalidateCache("date_data_");
+
+    return true;
+  }
+
   // Clear all data (for testing/reset purposes)
   clearAllData(): void {
     localStorage.removeItem(STORAGE_KEYS.GOALS_DATA);
@@ -1102,6 +1158,7 @@ export class LocalStorageService {
           completed: false,
           completedSteps: 0,
           stepCompletions: [],
+          snoozed: false,
         })),
         lastUpdated: new Date(),
       };
@@ -1189,6 +1246,7 @@ export class LocalStorageService {
         completedAt: status?.completedAt,
         completedSteps: status?.completedSteps || 0,
         stepCompletions: status?.stepCompletions || [],
+        snoozed: status?.snoozed || false,
       };
     });
   }

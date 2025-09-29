@@ -15,7 +15,8 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
-import { LocalStorageService } from "../../goals/services/localStorageService";
+import { Snooze as SnoozeIcon } from "@mui/icons-material";
+import { LocalStorageService } from "../goals/services/localStorageService";
 import {
   GoalType,
   DAYS_OF_WEEK,
@@ -23,9 +24,9 @@ import {
   Goal,
   DailyGoals,
   GoalWithStatus,
-} from "../../goals/types";
-import { WeekNavigation } from "../../goals/components/WeekNavigation";
-import { useWeekNavigation } from "../../goals/hooks/useWeekNavigation";
+} from "../goals/types";
+import { WeekNavigation } from "../goals/components/WeekNavigation";
+import { useWeekNavigation } from "../goals/hooks/useWeekNavigation";
 import dayjs from "dayjs";
 
 interface GoalWithDailyStatus {
@@ -42,6 +43,7 @@ interface GoalWithDailyStatus {
       completedSteps: number;
       totalSteps: number;
       disabled?: boolean;
+      snoozed?: boolean;
     };
   };
 }
@@ -76,6 +78,7 @@ const WeekView = React.memo(() => {
             completedSteps: number;
             totalSteps: number;
             disabled?: boolean;
+            snoozed?: boolean;
           };
         } = {};
 
@@ -96,6 +99,7 @@ const WeekView = React.memo(() => {
               completed: goalStatus?.completed || false,
               completedSteps: goalStatus?.completedSteps || 0,
               totalSteps: goal.totalSteps,
+              snoozed: goalStatus?.snoozed || false,
             };
           } else if (goal.goalType === GoalType.WEEKLY) {
             // Use pre-loaded weekly goals data
@@ -160,7 +164,7 @@ const WeekView = React.memo(() => {
   const getProgressValue = useCallback(
     (goal: GoalWithDailyStatus, date: string) => {
       const status = goal.dailyStatus[date];
-      if (!status || status.disabled) return 0;
+      if (!status || status.disabled || status.snoozed) return 0;
 
       if (goal.goalType === GoalType.WEEKLY) {
         return status.completed ? 100 : 0;
@@ -410,7 +414,30 @@ const WeekView = React.memo(() => {
                                     }}
                                   />
                                 )}
+                                {goal.dailyStatus[date]?.snoozed && (
+                                  <Box
+                                    sx={{
+                                      position: "absolute",
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: "50%",
+                                      backgroundColor:
+                                        "rgba(158, 158, 158, 0.2)",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    <SnoozeIcon
+                                      sx={{
+                                        fontSize: 20,
+                                        color: "grey.500",
+                                      }}
+                                    />
+                                  </Box>
+                                )}
                                 {!goal.dailyStatus[date]?.completed &&
+                                  !goal.dailyStatus[date]?.snoozed &&
                                   goal.isMultiStep &&
                                   goal.totalSteps > 1 &&
                                   goal.dailyStatus[date]?.completedSteps >
@@ -587,6 +614,28 @@ const WeekView = React.memo(() => {
                                           "rgba(76, 175, 80, 0.2)",
                                       }}
                                     />
+                                  )}
+                                  {goal.dailyStatus[date]?.snoozed && (
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: "50%",
+                                        backgroundColor:
+                                          "rgba(158, 158, 158, 0.2)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      <SnoozeIcon
+                                        sx={{
+                                          fontSize: 16,
+                                          color: "grey.500",
+                                        }}
+                                      />
+                                    </Box>
                                   )}
                                   <CircularProgress
                                     variant="determinate"

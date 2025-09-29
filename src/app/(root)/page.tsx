@@ -13,13 +13,13 @@ import {
   Button,
   Container,
 } from "@mui/material";
-import { useGoals } from "../goals/hooks/useGoals";
-import { useDateNavigation } from "../goals/hooks/useDateNavigation";
-import { GoalForm } from "../goals/components/GoalForm";
-import { DayOfWeek, DAYS_OF_WEEK, GoalType } from "../goals/types";
+import { useGoals } from "./goals/hooks/useGoals";
+import { useDateNavigation } from "./goals/hooks/useDateNavigation";
+import { GoalForm } from "./goals/components/GoalForm";
+import { DayOfWeek, DAYS_OF_WEEK, GoalType } from "./goals/types";
 
-import { GoalsList } from "../goals/components/GoalsList";
-import { DateNavigation } from "../goals/components/DateNavigation";
+import { GoalsList } from "./goals/components/GoalsList";
+import { DateNavigation } from "./goals/components/DateNavigation";
 
 const Goals = () => {
   const {
@@ -41,6 +41,7 @@ const Goals = () => {
     toggleGoal,
     toggleGoalStep,
     incrementGoalStep,
+    snoozeGoal,
     updateGoal,
     deleteGoal,
     getStats,
@@ -133,6 +134,16 @@ const Goals = () => {
     if (!goal) return;
 
     await incrementGoalStep(goalId);
+  };
+
+  const handleSnoozeGoal = async (goalId: string) => {
+    // Search through both daily and weekly goals
+    const goal =
+      goals.find((g) => g.id === goalId) ||
+      weeklyGoals.find((g) => g.id === goalId);
+    if (!goal) return;
+
+    await snoozeGoal(goalId);
   };
 
   const handleEditGoal = (goalId: string) => {
@@ -241,24 +252,6 @@ const Goals = () => {
         flexDirection: "column",
       }}
     >
-      {/* {!isToday && (
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          sx={{ mb: 3 }}
-        >
-          <Button
-            variant="outlined"
-            startIcon={<TodayIcon />}
-            onClick={goToToday}
-            size="medium"
-          >
-            Today
-          </Button>
-        </Box>
-      )} */}
-
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>
           {error}
@@ -296,6 +289,7 @@ const Goals = () => {
           onIncrementGoalStep={handleIncrementGoalStep}
           onEditGoal={handleEditGoal}
           onDeleteGoal={handleDeleteGoal}
+          onSnoozeGoal={handleSnoozeGoal}
           isReadOnly={isFuture}
           completionStats={completionStats}
         />
