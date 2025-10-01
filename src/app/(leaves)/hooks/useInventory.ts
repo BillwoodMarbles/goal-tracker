@@ -276,7 +276,7 @@ export const useInventory = () => {
       }
       return true;
     });
-  }, [state.items, state.filters]);
+  }, [state]);
 
   // Get subcategories for a parent category
   const getSubcategories = useCallback(

@@ -182,6 +182,9 @@ const WeekView = React.memo(() => {
       const status = goal.dailyStatus[date];
       if (!status || status.disabled) return "grey.400";
 
+      // If goal is snoozed, don't show as failed
+      if (status.snoozed) return "grey.400";
+
       // Check if this is a failed daily goal (active but not completed and no steps taken)
       if (goal.goalType === GoalType.DAILY && !status.disabled) {
         const isPastDate = dayjs(date).isBefore(dayjs(), "day");
@@ -199,7 +202,12 @@ const WeekView = React.memo(() => {
   const isGoalFailed = useCallback(
     (goal: GoalWithDailyStatus, date: string) => {
       const status = goal.dailyStatus[date];
-      if (!status || status.disabled || goal.goalType !== GoalType.DAILY)
+      if (
+        !status ||
+        status.disabled ||
+        status.snoozed ||
+        goal.goalType !== GoalType.DAILY
+      )
         return false;
 
       const isPastDate = dayjs(date).isBefore(dayjs(), "day");

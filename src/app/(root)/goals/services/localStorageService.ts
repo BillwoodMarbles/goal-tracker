@@ -409,7 +409,7 @@ export class LocalStorageService {
     stepIndex: number,
     date: string = getTodayString()
   ): boolean {
-    const data = this.getGoalsData();
+    let data = this.getGoalsData();
     const goal = data.goals.find((g) => g.id === goalId);
 
     if (
@@ -424,6 +424,8 @@ export class LocalStorageService {
     // Ensure daily goals exist
     if (!data.dailyGoals[date]) {
       this.getDailyGoals(date);
+      // Refresh data after creating daily goals
+      data = this.getGoalsData();
     }
 
     const dailyGoals = data.dailyGoals[date];
@@ -479,7 +481,7 @@ export class LocalStorageService {
 
   // New method to increment step completion for multi-step goals
   incrementGoalStep(goalId: string, date: string = getTodayString()): boolean {
-    const data = this.getGoalsData();
+    let data = this.getGoalsData();
     const goal = data.goals.find((g) => g.id === goalId);
 
     if (!goal || !goal.isMultiStep || goal.totalSteps <= 1) {
@@ -489,6 +491,8 @@ export class LocalStorageService {
     // Ensure daily goals exist
     if (!data.dailyGoals[date]) {
       this.getDailyGoals(date);
+      // Refresh data after creating daily goals
+      data = this.getGoalsData();
     }
 
     const dailyGoals = data.dailyGoals[date];
@@ -1001,7 +1005,7 @@ export class LocalStorageService {
 
   // Snooze a goal for a specific date
   snoozeGoal(goalId: string, date: string = getTodayString()): boolean {
-    const data = this.getGoalsData();
+    let data = this.getGoalsData();
     const goal = data.goals.find((g) => g.id === goalId);
 
     if (!goal || goal.goalType === GoalType.WEEKLY) {
@@ -1011,6 +1015,8 @@ export class LocalStorageService {
     // Ensure daily goals exist for the date
     if (!data.dailyGoals[date]) {
       this.getDailyGoals(date);
+      // Refresh data after creating daily goals
+      data = this.getGoalsData();
     }
 
     const dailyGoals = data.dailyGoals[date];
