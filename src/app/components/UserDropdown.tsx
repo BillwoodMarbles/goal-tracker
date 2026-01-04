@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Box,
   Typography,
   IconButton,
   Snackbar,
@@ -134,11 +133,6 @@ export const UserDropdown: React.FC = () => {
     }
   };
 
-  const formatUserId = (id: string) => {
-    // Format as: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    return id.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5");
-  };
-
   const getStatusIcon = () => {
     if (syncStatus.isOnline) {
       return syncStatus.pendingChanges ? (
@@ -188,20 +182,6 @@ export const UserDropdown: React.FC = () => {
           },
         }}
       >
-        <Box sx={{ px: 2, py: 1 }}>
-          <Typography variant="subtitle2" color="text.secondary">
-            User ID
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}
-          >
-            {formatUserId(userId)}
-          </Typography>
-        </Box>
-
-        <Divider />
-
         <MenuItem onClick={handleCopyUserId}>
           <ListItemIcon>
             <CopyIcon fontSize="small" />
