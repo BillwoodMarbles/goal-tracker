@@ -1,11 +1,85 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Goal, GoalWithStatus, DayOfWeek, GoalType } from "../types";
 import {
-  LocalStorageService,
+  SupabaseGoalsService,
   getTodayString,
-} from "../services/localStorageService";
+} from "../services/supabaseGoalsService";
+import { useSupabaseAuth } from "@/app/contexts/SupabaseAuthContext";
+
+type CompletionStats = { total: number; completed: number; percentage: number };
+
+const DAY_SET = new Set([
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+]);
+
+type GoalWithStatusDTO = {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt: string;
+  isActive: boolean;
+  goalType: "daily" | "weekly";
+  daysOfWeek: string[];
+  isMultiStep: boolean;
+  totalSteps: number;
+  completed: boolean;
+  completedAt?: string;
+  completedSteps: number;
+  stepCompletions: (string | null)[];
+  snoozed?: boolean;
+  dailyIncremented?: boolean;
+};
+
+type DailyResponseDTO = {
+  date: string;
+  goals: GoalWithStatusDTO[];
+  weeklyGoals: GoalWithStatusDTO[];
+  inactiveGoals: GoalWithStatusDTO[];
+  completionStats: CompletionStats;
+};
+
+/**
+ * React StrictMode (dev) mounts/unmounts components twice to detect side effects.
+ * If we abort fetches during cleanup, DevTools will show a "cancelled" request.
+ *
+ * To guarantee only ONE network request for a given (userId, date), we single-flight
+ * dedupe in-flight requests across mounts.
+ */
+const dailyInflightByKey = new Map<string, Promise<DailyResponseDTO>>();
+
+function toDayOfWeekArray(days: string[]): DayOfWeek[] {
+  return (days || []).filter((d): d is DayOfWeek => DAY_SET.has(d));
+}
+
+function dtoToGoalWithStatus(dto: GoalWithStatusDTO): GoalWithStatus {
+  return {
+    id: dto.id,
+    title: dto.title,
+    description: dto.description,
+    createdAt: new Date(dto.createdAt),
+    isActive: dto.isActive,
+    goalType: dto.goalType as GoalType,
+    daysOfWeek: toDayOfWeekArray(dto.daysOfWeek || []),
+    isMultiStep: dto.isMultiStep,
+    totalSteps: dto.totalSteps,
+    completed: dto.completed,
+    completedAt: dto.completedAt ? new Date(dto.completedAt) : undefined,
+    completedSteps: dto.completedSteps,
+    stepCompletions: (dto.stepCompletions || []).map((ts) =>
+      ts ? new Date(ts) : undefined
+    ),
+    snoozed: dto.snoozed,
+    dailyIncremented: dto.dailyIncremented,
+  };
+}
 
 export const useGoals = (selectedDate?: string) => {
   const [goals, setGoals] = useState<GoalWithStatus[]>([]);
@@ -13,37 +87,97 @@ export const useGoals = (selectedDate?: string) => {
   const [inactiveGoals, setInactiveGoals] = useState<GoalWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cachedDateData, setCachedDateData] = useState<{
-    goals: GoalWithStatus[];
-    weeklyGoals: GoalWithStatus[];
-    inactiveGoals: GoalWithStatus[];
-  } | null>(null);
+  const [completionStats, setCompletionStats] = useState<CompletionStats>({
+    total: 0,
+    completed: 0,
+    percentage: 0,
+  });
 
   const currentDate = selectedDate || getTodayString();
-  const storageService = LocalStorageService.getInstance();
+  const { user } = useSupabaseAuth();
+  const userId = user?.id ?? null;
+
+  // Prevent setting state after unmount (StrictMode dev cycle, navigation, etc.)
+  const mountedRef = useRef(false);
 
   // Load goals with their completion status for the selected date
-  const loadGoals = useCallback(() => {
+  const loadGoals = useCallback(async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    const requestKey = `${userId}:${currentDate}`;
+
     try {
       setLoading(true);
-      // Use batch loading method to get all data for the date
-      const dateData = storageService.getDateData(currentDate);
-      setGoals(dateData.goals);
-      setWeeklyGoals(dateData.weeklyGoals);
-      setInactiveGoals(dateData.inactiveGoals);
-      setCachedDateData(dateData); // Cache the data for stats calculations
+      const inflight =
+        dailyInflightByKey.get(requestKey) ??
+        (async () => {
+          const res = await fetch(`/api/goals/daily?date=${currentDate}`);
+
+          if (!res.ok) {
+            if (res.status === 401) {
+              throw Object.assign(new Error("Not signed in"), {
+                name: "UnauthorizedError",
+              });
+            }
+            throw new Error(`Failed to load daily data (${res.status})`);
+          }
+
+          return (await res.json()) as DailyResponseDTO;
+        })();
+
+      if (!dailyInflightByKey.has(requestKey)) {
+        dailyInflightByKey.set(requestKey, inflight);
+        void inflight.finally(() => {
+          // Only clear if the same promise is still registered.
+          if (dailyInflightByKey.get(requestKey) === inflight) {
+            dailyInflightByKey.delete(requestKey);
+          }
+        });
+      }
+
+      const dto = await inflight;
+      const nextGoals = (dto.goals || []).map(dtoToGoalWithStatus);
+      const nextWeeklyGoals = (dto.weeklyGoals || []).map(dtoToGoalWithStatus);
+      const nextInactiveGoals = (dto.inactiveGoals || []).map(
+        dtoToGoalWithStatus
+      );
+
+      if (!mountedRef.current) return;
+
+      setGoals(nextGoals);
+      setWeeklyGoals(nextWeeklyGoals);
+      setInactiveGoals(nextInactiveGoals);
+      setCompletionStats(
+        dto.completionStats || { total: 0, completed: 0, percentage: 0 }
+      );
       setError(null);
     } catch (err) {
-      setError("Failed to load goals");
-      console.error("Error loading goals:", err);
+      if (mountedRef.current) {
+        if ((err as { name?: string } | null)?.name === "UnauthorizedError") {
+          setError("Not signed in");
+          return;
+        }
+        setError("Failed to load goals");
+        console.error("Error loading goals:", err);
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [currentDate, storageService]);
+  }, [currentDate, userId]);
 
   // Load goals when component mounts or date changes
   useEffect(() => {
+    mountedRef.current = true;
     loadGoals();
+
+    return () => {
+      mountedRef.current = false;
+    };
   }, [loadGoals]);
 
   // Add a new goal
@@ -62,7 +196,8 @@ export const useGoals = (selectedDate?: string) => {
           return null;
         }
 
-        const newGoal = storageService.addGoal(
+        const storageService = SupabaseGoalsService.getInstance();
+        const newGoal = await storageService.addGoal(
           title.trim(),
           description?.trim(),
           daysOfWeek,
@@ -70,9 +205,8 @@ export const useGoals = (selectedDate?: string) => {
           totalSteps,
           goalType
         );
-        // Invalidate cache and reload data
-        storageService.invalidateAllCache();
-        loadGoals(); // Refresh the goals list
+        // Reload data
+        await loadGoals(); // Refresh the goals list
         setError(null);
         return newGoal;
       } catch (err) {
@@ -81,33 +215,32 @@ export const useGoals = (selectedDate?: string) => {
         return null;
       }
     },
-    [storageService, loadGoals]
+    [loadGoals]
   );
 
   // Toggle goal completion for the current date
   const toggleGoal = useCallback(
     async (goalId: string): Promise<boolean> => {
       try {
-        // Check if it's a weekly goal
-        const goal = storageService.getGoals().find((g) => g.id === goalId);
+        const storageService = SupabaseGoalsService.getInstance();
+        // Check if it's a weekly goal using already-loaded data
+        const goal = [...goals, ...weeklyGoals].find((g) => g.id === goalId);
         if (goal?.goalType === GoalType.WEEKLY) {
-          const newCompletionStatus = storageService.toggleWeeklyGoal(
+          const newCompletionStatus = await storageService.toggleWeeklyGoal(
             goalId,
             currentDate
           );
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
           return newCompletionStatus;
         } else {
-          const newCompletionStatus = storageService.toggleGoalCompletion(
+          const newCompletionStatus = await storageService.toggleGoalCompletion(
             goalId,
             currentDate
           );
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
           return newCompletionStatus;
         }
@@ -117,35 +250,34 @@ export const useGoals = (selectedDate?: string) => {
         return false;
       }
     },
-    [storageService, currentDate, loadGoals]
+    [currentDate, loadGoals, goals, weeklyGoals]
   );
 
   // Toggle individual step for multi-step goals
   const toggleGoalStep = useCallback(
     async (goalId: string, stepIndex: number): Promise<boolean> => {
       try {
-        // Check if it's a weekly goal
-        const goal = storageService.getGoals().find((g) => g.id === goalId);
+        const storageService = SupabaseGoalsService.getInstance();
+        // Check if it's a weekly goal using already-loaded data
+        const goal = [...goals, ...weeklyGoals].find((g) => g.id === goalId);
         if (goal?.goalType === GoalType.WEEKLY) {
-          const newStepStatus = storageService.toggleWeeklyGoalStep(
+          const newStepStatus = await storageService.toggleWeeklyGoalStep(
             goalId,
             stepIndex,
             currentDate
           );
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
           return newStepStatus;
         } else {
-          const newStepStatus = storageService.toggleGoalStep(
+          const newStepStatus = await storageService.toggleGoalStep(
             goalId,
             stepIndex,
             currentDate
           );
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
           return newStepStatus;
         }
@@ -155,30 +287,32 @@ export const useGoals = (selectedDate?: string) => {
         return false;
       }
     },
-    [storageService, currentDate, loadGoals]
+    [currentDate, loadGoals, goals, weeklyGoals]
   );
 
   // Increment step completion for multi-step goals
   const incrementGoalStep = useCallback(
     async (goalId: string): Promise<boolean> => {
       try {
-        // Check if it's a weekly goal
-        const goal = storageService.getGoals().find((g) => g.id === goalId);
+        const storageService = SupabaseGoalsService.getInstance();
+        // Check if it's a weekly goal using already-loaded data
+        const goal = [...goals, ...weeklyGoals].find((g) => g.id === goalId);
         if (goal?.goalType === GoalType.WEEKLY) {
-          const success = storageService.incrementWeeklyGoalStep(
+          const success = await storageService.incrementWeeklyGoalStep(
             goalId,
             currentDate
           );
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
           return success;
         } else {
-          const success = storageService.incrementGoalStep(goalId, currentDate);
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          const success = await storageService.incrementGoalStep(
+            goalId,
+            currentDate
+          );
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
           return success;
         }
@@ -188,18 +322,18 @@ export const useGoals = (selectedDate?: string) => {
         return false;
       }
     },
-    [storageService, currentDate, loadGoals]
+    [currentDate, loadGoals, goals, weeklyGoals]
   );
 
   // Update an existing goal
   const updateGoal = useCallback(
     async (goalId: string, updates: Partial<Goal>): Promise<Goal | null> => {
       try {
-        const updatedGoal = storageService.updateGoal(goalId, updates);
+        const storageService = SupabaseGoalsService.getInstance();
+        const updatedGoal = await storageService.updateGoal(goalId, updates);
         if (updatedGoal) {
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
         } else {
           setError("Goal not found");
@@ -211,18 +345,18 @@ export const useGoals = (selectedDate?: string) => {
         return null;
       }
     },
-    [storageService, loadGoals]
+    [loadGoals]
   );
 
   // Delete a goal (soft delete)
   const deleteGoal = useCallback(
     async (goalId: string): Promise<boolean> => {
       try {
-        const success = storageService.deleteGoal(goalId);
+        const storageService = SupabaseGoalsService.getInstance();
+        const success = await storageService.deleteGoal(goalId);
         if (success) {
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
         } else {
           setError("Goal not found");
@@ -234,33 +368,25 @@ export const useGoals = (selectedDate?: string) => {
         return false;
       }
     },
-    [storageService, loadGoals]
+    [loadGoals]
   );
 
   // Get completion statistics for the current date
   const getStats = useCallback(() => {
-    try {
-      // Use cached data if available, otherwise fall back to direct call
-      if (cachedDateData) {
-        return storageService.getCompletionStatsFromData(cachedDateData.goals);
-      }
-      return storageService.getCompletionStats(currentDate);
-    } catch (err) {
-      console.error("Error getting stats:", err);
-      return { total: 0, completed: 0, percentage: 0 };
-    }
-  }, [storageService, currentDate, cachedDateData]);
+    // Never do network reads from render; stats are derived from the API response.
+    return completionStats;
+  }, [completionStats]);
 
   // Snooze a goal
   const snoozeGoal = useCallback(
     async (goalId: string): Promise<boolean> => {
       try {
-        const success = storageService.snoozeGoal(goalId, currentDate);
+        const storageService = SupabaseGoalsService.getInstance();
+        const success = await storageService.snoozeGoal(goalId, currentDate);
 
         if (success) {
-          // Invalidate cache and reload data
-          storageService.invalidateAllCache();
-          loadGoals(); // Refresh the goals list
+          // Reload data
+          await loadGoals(); // Refresh the goals list
           setError(null);
         } else {
           setError("Failed to snooze goal");
@@ -272,7 +398,7 @@ export const useGoals = (selectedDate?: string) => {
         return false;
       }
     },
-    [storageService, currentDate, loadGoals]
+    [currentDate, loadGoals]
   );
 
   // Clear error
@@ -294,6 +420,7 @@ export const useGoals = (selectedDate?: string) => {
     deleteGoal,
     snoozeGoal,
     getStats,
+    completionStats,
     clearError,
     refresh: loadGoals,
   };

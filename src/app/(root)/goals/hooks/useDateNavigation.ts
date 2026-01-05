@@ -6,7 +6,7 @@ import {
   formatDate,
   getTodayString,
   // getCurrentDayOfWeek,
-} from "../services/localStorageService";
+} from "../services/supabaseGoalsService";
 
 export const useDateNavigation = () => {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());

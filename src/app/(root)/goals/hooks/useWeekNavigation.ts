@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import dayjs from "dayjs";
-import { getTodayString } from "../services/localStorageService";
+import { getTodayString } from "../services/supabaseGoalsService";
 
 export const useWeekNavigation = () => {
   const [selectedWeekStart, setSelectedWeekStart] = useState(() => {

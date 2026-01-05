@@ -4,7 +4,8 @@ import "../globals.css";
 import { Box } from "@mui/material";
 import { AppHeader } from "../components/AppHeader";
 import { AppFooter } from "../components/AppFooter";
-import { DynamoDBInitializer } from "../components/DynamoDBInitializer";
+import { SupabaseAuthProvider } from "../contexts/SupabaseAuthContext";
+import AuthGuard from "../components/AuthGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -116,21 +117,23 @@ export default function RootLayout({
           overflow: "hidden",
         }}
       >
-        <DynamoDBInitializer />
-        <AppHeader />
-
-        <Box
-          component="main"
-          sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-          }}
-        >
-          {children}
-        </Box>
-        <AppFooter />
+        <SupabaseAuthProvider>
+          <AppHeader />
+          <AuthGuard>
+            <Box
+              component="main"
+              sx={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                minHeight: 0,
+              }}
+            >
+              {children}
+            </Box>
+          </AuthGuard>
+          <AppFooter />
+        </SupabaseAuthProvider>
       </body>
     </html>
   );

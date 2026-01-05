@@ -16,7 +16,6 @@ import {
   TableRow,
 } from "@mui/material";
 import { Snooze as SnoozeIcon } from "@mui/icons-material";
-import { LocalStorageService } from "../goals/services/localStorageService";
 import {
   GoalType,
   DAYS_OF_WEEK,
@@ -48,6 +47,47 @@ interface GoalWithDailyStatus {
   };
 }
 
+type WeekGoalDTO = Omit<Goal, "createdAt" | "goalType" | "daysOfWeek"> & {
+  createdAt: string;
+  goalType: "daily" | "weekly";
+  daysOfWeek: string[];
+};
+
+type DailyGoalStatusDTO = {
+  goalId: string;
+  completed: boolean;
+  completedAt?: string;
+  completedSteps: number;
+  stepCompletions: (string | null)[];
+  snoozed?: boolean;
+};
+
+type DailyGoalsDTO = {
+  date: string;
+  goals: DailyGoalStatusDTO[];
+  lastUpdated: string;
+};
+
+type WeeklyGoalWithStatusDTO = Omit<
+  GoalWithStatus,
+  "createdAt" | "completedAt" | "stepCompletions" | "goalType" | "daysOfWeek"
+> & {
+  createdAt: string;
+  completedAt?: string;
+  stepCompletions: (string | null)[];
+  goalType: "daily" | "weekly";
+  daysOfWeek: string[];
+  dailyIncremented?: boolean;
+};
+
+type WeekResponseDTO = {
+  weekStart: string;
+  weekDates: string[];
+  goals: WeekGoalDTO[];
+  dailyGoals: Record<string, DailyGoalsDTO>;
+  weeklyGoals: Record<string, WeeklyGoalWithStatusDTO[]>;
+};
+
 const WeekView = React.memo(() => {
   const [goals, setGoals] = useState<GoalWithDailyStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,11 +101,59 @@ const WeekView = React.memo(() => {
 
   const { selectedWeekStart, goToPrevWeek, goToNextWeek } = useWeekNavigation();
 
-  const loadWeekData = useCallback(() => {
-    const storageService = LocalStorageService.getInstance();
+  const loadWeekData = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/goals/week?weekStart=${selectedWeekStart}`);
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
+    const dto = (await res.json()) as WeekResponseDTO;
 
-    // Use batch loading method to get all week data
-    const weekData = storageService.getWeekData(selectedWeekStart);
+    const weekData = {
+      weekDates: dto.weekDates,
+      goals: (dto.goals || []).map((g) => ({
+        ...g,
+        createdAt: new Date(g.createdAt),
+        goalType: g.goalType as GoalType,
+        daysOfWeek: g.daysOfWeek as DayOfWeek[],
+      })),
+      dailyGoals: Object.fromEntries(
+        Object.entries(dto.dailyGoals || {}).map(([date, dg]) => [
+          date,
+          {
+            date: dg.date,
+            goals: (dg.goals || []).map((s) => ({
+              goalId: s.goalId,
+              completed: !!s.completed,
+              completedAt: s.completedAt ? new Date(s.completedAt) : undefined,
+              completedSteps: s.completedSteps ?? 0,
+              stepCompletions: (s.stepCompletions || []).map((ts: string | null) =>
+                ts ? new Date(ts) : undefined
+              ),
+              snoozed: !!s.snoozed,
+            })),
+            lastUpdated: dg.lastUpdated ? new Date(dg.lastUpdated) : new Date(),
+          } as DailyGoals,
+        ])
+      ),
+      weeklyGoals: Object.fromEntries(
+        Object.entries(dto.weeklyGoals || {}).map(([date, goals]) => [
+          date,
+          (goals || []).map((g) => ({
+            ...g,
+            createdAt: new Date(g.createdAt),
+            goalType: g.goalType as GoalType,
+            daysOfWeek: g.daysOfWeek as DayOfWeek[],
+            completedAt: g.completedAt ? new Date(g.completedAt) : undefined,
+            stepCompletions: (g.stepCompletions || []).map((ts: string | null) =>
+              ts ? new Date(ts) : undefined
+            ),
+          })) as GoalWithStatus[],
+        ])
+      ),
+    };
+
     setWeekDates(weekData.weekDates);
     setCachedWeekData(weekData); // Store the cached data
 
@@ -145,9 +233,7 @@ const WeekView = React.memo(() => {
   // Listen for goal updates from the header
   useEffect(() => {
     const handleGoalsUpdated = () => {
-      // Invalidate cache and reload data
-      const storageService = LocalStorageService.getInstance();
-      storageService.invalidateAllCache();
+      // Reload data when goals are updated
       loadWeekData();
     };
 

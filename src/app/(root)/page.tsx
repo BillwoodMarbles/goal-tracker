@@ -44,7 +44,7 @@ const Goals = () => {
     snoozeGoal,
     updateGoal,
     deleteGoal,
-    getStats,
+    completionStats,
     clearError,
     refresh,
   } = useGoals(selectedDate);
@@ -240,8 +240,6 @@ const Goals = () => {
       showSnackbar("Failed to delete goal", "error");
     }
   };
-
-  const completionStats = getStats();
 
   return (
     <Box

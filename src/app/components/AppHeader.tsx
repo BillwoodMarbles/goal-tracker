@@ -11,7 +11,7 @@ import {
   Alert,
 } from "@mui/material";
 import { AddCircleOutline, BarChart } from "@mui/icons-material";
-import { LocalStorageService } from "../(root)/goals/services/localStorageService";
+import { SupabaseGoalsService } from "../(root)/goals/services/supabaseGoalsService";
 import { GoalForm } from "../(root)/goals/components/GoalForm";
 import { DayOfWeek, GoalType } from "../(root)/goals/types";
 import { UserDropdown } from "./UserDropdown";
@@ -45,9 +45,8 @@ export const AppHeader: React.FC = () => {
   };
 
   const handlePerformanceLog = () => {
-    const storageService = LocalStorageService.getInstance();
-    storageService.logPerformance();
-    showSnackbar("Performance metrics logged to console");
+    // Performance monitoring is done through Supabase dashboard
+    showSnackbar("View performance in Supabase dashboard", "success");
   };
 
   const handleSubmitGoal = async (
@@ -59,7 +58,7 @@ export const AppHeader: React.FC = () => {
     goalType?: GoalType
   ) => {
     try {
-      const storageService = LocalStorageService.getInstance();
+      const storageService = SupabaseGoalsService.getInstance();
       await storageService.addGoal(
         title,
         description,
