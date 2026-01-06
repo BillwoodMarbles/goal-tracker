@@ -1,38 +1,14 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-
-async function getSupabaseRouteHandlerClient() {
-  const cookieStore = await cookies();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Missing Supabase environment variables. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY"
-    );
-  }
-
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
-        });
-      },
-    },
-  });
-}
+import { getSupabaseAdminClient } from "../../_utils/supabaseAdmin";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const supabase = await getSupabaseRouteHandlerClient();
+    // Use a service-role client for invite preview so it works without auth
+    // and does not require opening up RLS policies to anonymous users.
+    const supabase = getSupabaseAdminClient();
     const { token } = await params;
 
     // Note: This endpoint should work without authentication
@@ -89,13 +65,11 @@ export async function GET(
     }
 
     // Count active members
-    const { data: members, error: membersError } = await supabase
+    const { count: memberCount, error: membersError } = await supabase
       .from("group_goal_members")
       .select("user_id", { count: "exact", head: true })
       .eq("group_goal_id", goal.id)
       .is("left_at", null);
-
-    const memberCount = membersError ? 0 : (members as unknown as number) || 0;
 
     return NextResponse.json({
       groupGoal: {
@@ -105,7 +79,7 @@ export async function GET(
         startDate: goal.start_date,
         endDate: goal.end_date,
         daysOfWeek: goal.days_of_week,
-        memberCount,
+        memberCount: membersError ? 0 : memberCount ?? 0,
       },
     });
   } catch (e) {

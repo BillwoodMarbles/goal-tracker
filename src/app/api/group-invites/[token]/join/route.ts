@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { getSupabaseAdminClient } from "../../../_utils/supabaseAdmin";
 
 async function getSupabaseRouteHandlerClient() {
   const cookieStore = await cookies();
@@ -32,7 +33,11 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
+    // Use cookie-based anon client only to identify the user session.
     const supabase = await getSupabaseRouteHandlerClient();
+    // Use service-role client for invite/member DB operations to bypass RLS
+    // (invites are owner-only under RLS, but invite join must work for non-owners).
+    const admin = getSupabaseAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -44,7 +49,7 @@ export async function POST(
     const { token } = await params;
 
     // Get the invite and verify it's valid
-    const { data: invite, error: inviteError } = await supabase
+    const { data: invite, error: inviteError } = await admin
       .from("group_goal_invites")
       .select("group_goal_id, revoked_at")
       .eq("token", token)
@@ -61,18 +66,32 @@ export async function POST(
       );
     }
 
+    // Ensure the goal still exists and is active
+    const { data: goal, error: goalError } = await admin
+      .from("group_goals")
+      .select("id, is_active")
+      .eq("id", invite.group_goal_id)
+      .single();
+
+    if (goalError || !goal || !goal.is_active) {
+      return NextResponse.json(
+        { error: "Group goal not found or inactive" },
+        { status: 404 }
+      );
+    }
+
     // Check if user is already a member
-    const { data: existingMembership } = await supabase
+    const { data: existingMembership } = await admin
       .from("group_goal_members")
       .select("left_at")
       .eq("group_goal_id", invite.group_goal_id)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (existingMembership) {
       if (existingMembership.left_at) {
         // User previously left, rejoin by clearing left_at
-        const { error: updateError } = await supabase
+        const { error: updateError } = await admin
           .from("group_goal_members")
           .update({ left_at: null })
           .eq("group_goal_id", invite.group_goal_id)
@@ -95,7 +114,7 @@ export async function POST(
     }
 
     // Add user as a member
-    const { error: memberError } = await supabase
+    const { error: memberError } = await admin
       .from("group_goal_members")
       .insert({
         group_goal_id: invite.group_goal_id,
