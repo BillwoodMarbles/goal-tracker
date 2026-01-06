@@ -87,6 +87,7 @@ type WeekResponseDTO = {
   goals: WeekGoalDTO[];
   dailyGoals: Record<string, DailyGoalsDTO>;
   weeklyGoals: Record<string, WeeklyGoalWithStatusDTO[]>;
+  groupGoals?: Record<string, GroupGoalWithStatusDTO[]>;
 };
 
 type GroupGoalWithStatusDTO = {
@@ -105,10 +106,6 @@ type GroupGoalWithStatusDTO = {
   selfCompleted: boolean;
   allCompleted: boolean;
   role: "owner" | "member";
-};
-
-type DailyWithGroupGoalsDTO = {
-  groupGoals?: GroupGoalWithStatusDTO[];
 };
 
 const DAY_SET = new Set([
@@ -171,21 +168,22 @@ const WeekView = React.memo(() => {
 
   const { selectedWeekStart, goToPrevWeek, goToNextWeek } = useWeekNavigation();
 
-  const loadGroupGoalsForWeek = useCallback(async (dates: string[]) => {
+  const loadWeekData = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch(`/api/goals/week?weekStart=${selectedWeekStart}`);
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
+    const dto = (await res.json()) as WeekResponseDTO;
+    // Group goals are included in the week response; build the per-goal dailyStatus grid.
     try {
-      const dailyDtos = await Promise.all(
-        dates.map(async (date) => {
-          const res = await fetch(`/api/goals/daily?date=${date}`);
-          if (!res.ok) return null;
-          return (await res.json()) as DailyWithGroupGoalsDTO;
-        })
-      );
-
+      const dates = dto.weekDates || [];
+      const groupGoalsByDate = dto.groupGoals || {};
       const byId = new Map<string, GroupGoalWithDailyStatus>();
 
-      dates.forEach((date, idx) => {
-        const dto = dailyDtos[idx];
-        const groupGoalsForDate = dto?.groupGoals || [];
+      dates.forEach((date) => {
+        const groupGoalsForDate = groupGoalsByDate[date] || [];
 
         groupGoalsForDate.forEach((gg) => {
           const existing = byId.get(gg.id);
@@ -238,21 +236,9 @@ const WeekView = React.memo(() => {
       );
       setGroupGoals(next);
     } catch (err) {
-      console.error("Error loading group goals for week:", err);
+      console.error("Error building group goals from week response:", err);
       setGroupGoals([]);
     }
-  }, []);
-
-  const loadWeekData = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch(`/api/goals/week?weekStart=${selectedWeekStart}`);
-    if (!res.ok) {
-      setLoading(false);
-      return;
-    }
-    const dto = (await res.json()) as WeekResponseDTO;
-
-    void loadGroupGoalsForWeek(dto.weekDates || []);
 
     const weekData = {
       weekDates: dto.weekDates,
@@ -367,7 +353,7 @@ const WeekView = React.memo(() => {
 
     setGoals(goalsWithDailyStatus);
     setLoading(false);
-  }, [loadGroupGoalsForWeek, selectedWeekStart]);
+  }, [selectedWeekStart]);
 
   useEffect(() => {
     loadWeekData();

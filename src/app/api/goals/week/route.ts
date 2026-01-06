@@ -332,9 +332,7 @@ export async function GET(request: Request) {
 
       // Process each group goal for each date
       weekDates.forEach((d) => {
-        const dayOfWeek = new Date(d)
-          .toLocaleDateString("en-US", { weekday: "long" })
-          .toLowerCase();
+        const dayOfWeek = dayjs(d).format("dddd").toLowerCase();
 
         (groupGoalsData || []).forEach((gg) => {
           const members = membersByGoal.get(gg.id) || [];

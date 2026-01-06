@@ -199,6 +199,31 @@ export const GoalsList: React.FC<GoalsListProps> = ({
         </Box>
       )}
 
+      {/* Group Goals */}
+      {groupGoals.length > 0 && (
+        <Box mb={3}>
+          <Box
+            display="flex"
+            alignItems="center"
+            justifyContent="space-between"
+            gap={1}
+            mb={1}
+          >
+            <Typography variant="h6">Group Goals</Typography>
+          </Box>
+          {groupGoals.map((groupGoal) => (
+            <GroupGoalItem
+              key={groupGoal.id}
+              groupGoal={groupGoal}
+              onToggle={onToggleGroupGoal || (() => {})}
+              onEdit={onEditGroupGoal}
+              onRefresh={onRefreshGoals}
+              selectedDate={selectedDate}
+            />
+          ))}
+        </Box>
+      )}
+
       {/* Historical Group Goals */}
       {historicalGroupGoals.length > 0 && (
         <Box mb={3}>
