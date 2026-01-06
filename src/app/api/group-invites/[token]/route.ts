@@ -77,7 +77,9 @@ export async function GET(
       return NextResponse.json(
         {
           error:
-            "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY (set this env var in your hosting provider).",
+            "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY (or it isn't available to the running server).",
+          debug: e.debug,
+          hint: "In Amplify: App settings → Environment variables → set SUPABASE_SERVICE_ROLE_KEY for the active branch, then redeploy (clear cache). Also ensure SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL is set.",
         },
         { status: 500 }
       );
