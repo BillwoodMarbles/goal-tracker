@@ -19,7 +19,7 @@ export function getSupabaseAdminClient() {
   const supabaseUrl =
     process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ??
     process.env.SUPABASE_SERVICE_ROLE ??
     process.env.SUPABASE_SERVICE_KEY;
 
@@ -27,12 +27,13 @@ export function getSupabaseAdminClient() {
     const debug = {
       hasSUPABASE_URL: !!process.env.SUPABASE_URL,
       hasNEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasSUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasNEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY:
+        !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,
       hasSUPABASE_SERVICE_ROLE: !!process.env.SUPABASE_SERVICE_ROLE,
       hasSUPABASE_SERVICE_KEY: !!process.env.SUPABASE_SERVICE_KEY,
     };
     throw new SupabaseAdminConfigError(
-      "Missing Supabase admin environment variables. Please set SUPABASE_SERVICE_ROLE_KEY (and SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL).",
+      "Missing Supabase admin environment variables. Please set NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY (and SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL).",
       debug
     );
   }
