@@ -36,12 +36,15 @@ const Goals = () => {
     goals,
     weeklyGoals,
     inactiveGoals,
+    groupGoals,
+    historicalGroupGoals,
     loading,
     error,
     toggleGoal,
     toggleGoalStep,
     incrementGoalStep,
     snoozeGoal,
+    toggleGroupGoal,
     updateGoal,
     deleteGoal,
     completionStats,
@@ -280,6 +283,8 @@ const Goals = () => {
           goals={goals}
           weeklyGoals={weeklyGoals}
           inactiveGoals={inactiveGoals}
+          groupGoals={groupGoals}
+          historicalGroupGoals={historicalGroupGoals}
           loading={loading}
           error={error}
           onToggleGoal={handleToggleGoal}
@@ -288,7 +293,10 @@ const Goals = () => {
           onEditGoal={handleEditGoal}
           onDeleteGoal={handleDeleteGoal}
           onSnoozeGoal={handleSnoozeGoal}
+          onToggleGroupGoal={toggleGroupGoal}
+          onRefreshGoals={refresh}
           isReadOnly={isFuture}
+          selectedDate={selectedDate}
           completionStats={completionStats}
         />
 

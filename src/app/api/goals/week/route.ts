@@ -257,12 +257,119 @@ export async function GET(request: Request) {
       });
     });
 
+    // 4) Fetch group goals the user is a member of
+    const { data: membershipData } = await supabase
+      .from("group_goal_members")
+      .select("group_goal_id, role")
+      .eq("user_id", user.id)
+      .is("left_at", null);
+
+    const groupGoalIds = (membershipData || []).map((m) => m.group_goal_id);
+    const membershipMap = new Map(
+      (membershipData || []).map((m) => [m.group_goal_id, m.role])
+    );
+
+    const groupGoalsByDate: Record<string, unknown[]> = {};
+    weekDates.forEach((d) => {
+      groupGoalsByDate[d] = [];
+    });
+
+    if (groupGoalIds.length > 0) {
+      // Fetch group goals
+      const { data: groupGoalsData } = await supabase
+        .from("group_goals")
+        .select("id, owner_id, title, description, created_at, is_active, start_date, end_date, days_of_week, total_steps")
+        .in("id", groupGoalIds)
+        .eq("is_active", true);
+
+      // Fetch all members for these goals
+      const { data: allMembersData } = await supabase
+        .from("group_goal_members")
+        .select("group_goal_id, user_id")
+        .in("group_goal_id", groupGoalIds)
+        .is("left_at", null);
+
+      const membersByGoal = new Map<string, string[]>();
+      (allMembersData || []).forEach((m) => {
+        if (!membersByGoal.has(m.group_goal_id)) {
+          membersByGoal.set(m.group_goal_id, []);
+        }
+        membersByGoal.get(m.group_goal_id)!.push(m.user_id);
+      });
+
+      // Fetch statuses for all group goals for the week
+      const { data: groupStatusData } = await supabase
+        .from("group_daily_goal_status")
+        .select("group_goal_id, user_id, date, completed, completed_at")
+        .in("group_goal_id", groupGoalIds)
+        .gte("date", weekStart)
+        .lte("date", weekEnd);
+
+      const statusesByGoalAndDate = new Map<string, Map<string, Map<string, { completed: boolean; completed_at: string | null }>>>();
+      (groupStatusData || []).forEach((s) => {
+        if (!statusesByGoalAndDate.has(s.group_goal_id)) {
+          statusesByGoalAndDate.set(s.group_goal_id, new Map());
+        }
+        const goalStatuses = statusesByGoalAndDate.get(s.group_goal_id)!;
+        if (!goalStatuses.has(s.date)) {
+          goalStatuses.set(s.date, new Map());
+        }
+        goalStatuses.get(s.date)!.set(s.user_id, {
+          completed: s.completed,
+          completed_at: s.completed_at,
+        });
+      });
+
+      // Process each group goal for each date
+      weekDates.forEach((d) => {
+        const dayOfWeek = new Date(d).toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+        
+        (groupGoalsData || []).forEach((gg) => {
+          const members = membersByGoal.get(gg.id) || [];
+          const dateStatuses = statusesByGoalAndDate.get(gg.id)?.get(d) || new Map();
+          
+          const membersTotal = members.length;
+          const membersCompleted = members.filter((uid) => dateStatuses.get(uid)?.completed).length;
+          const selfStatus = dateStatuses.get(user.id);
+          const selfCompleted = selfStatus?.completed ?? false;
+          const allCompleted = membersTotal > 0 && membersCompleted === membersTotal;
+          
+          // Check if goal is active for this day/date
+          const isActiveForDay = (gg.days_of_week || []).includes(dayOfWeek);
+          const isInDateRange = 
+            (!gg.start_date || gg.start_date <= d) &&
+            (!gg.end_date || gg.end_date >= d);
+          
+          if (isActiveForDay && isInDateRange) {
+            groupGoalsByDate[d].push({
+              id: gg.id,
+              ownerId: gg.owner_id,
+              title: gg.title,
+              description: gg.description ?? undefined,
+              createdAt: gg.created_at,
+              isActive: gg.is_active,
+              startDate: gg.start_date,
+              endDate: gg.end_date,
+              daysOfWeek: gg.days_of_week ?? [],
+              totalSteps: gg.total_steps,
+              membersTotal,
+              membersCompleted,
+              selfCompleted,
+              allCompleted,
+              role: membershipMap.get(gg.id) || "member",
+            });
+          }
+        });
+      });
+    }
+
     return NextResponse.json({
       weekStart,
       weekDates,
       goals: allGoals,
       dailyGoals,
       weeklyGoals: weeklyGoalsByDate,
+      groupGoals: groupGoalsByDate,
     });
   } catch (e) {
     console.error(e);

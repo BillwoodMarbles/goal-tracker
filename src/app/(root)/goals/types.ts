@@ -5,6 +5,11 @@ export enum GoalType {
   WEEKLY = "weekly",
 }
 
+export enum GoalKind {
+  PERSONAL = "personal",
+  GROUP = "group",
+}
+
 export interface Goal {
   id: string;
   title: string;
@@ -97,6 +102,33 @@ export type GoalWithStatus = Goal & {
   dailyIncremented?: boolean; // For weekly goals: whether incremented today
   snoozed?: boolean; // Whether the goal is snoozed for this day
 };
+
+// Group goal types
+export interface GroupGoalWithStatus {
+  id: string;
+  ownerId: string;
+  title: string;
+  description?: string;
+  createdAt: Date;
+  isActive: boolean;
+  startDate: string;
+  endDate?: string;
+  daysOfWeek: DayOfWeek[];
+  totalSteps: number;
+  membersTotal: number;
+  membersCompleted: number;
+  selfCompleted: boolean;
+  allCompleted: boolean;
+  role: "owner" | "member";
+}
+
+export interface GroupGoalMemberStatus {
+  userId: string;
+  displayName: string;
+  role: "owner" | "member";
+  completed: boolean;
+  completedAt?: string;
+}
 
 // Local storage keys
 export const STORAGE_KEYS = {

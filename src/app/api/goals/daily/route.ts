@@ -229,6 +229,106 @@ export async function GET(request: Request) {
             }, 0) / total
           );
 
+    // 4) Fetch group goals the user is a member of
+    const { data: membershipData } = await supabase
+      .from("group_goal_members")
+      .select("group_goal_id, role")
+      .eq("user_id", user.id)
+      .is("left_at", null);
+
+    const groupGoalIds = (membershipData || []).map((m) => m.group_goal_id);
+    const membershipMap = new Map(
+      (membershipData || []).map((m) => [m.group_goal_id, m.role])
+    );
+
+    let groupGoals: unknown[] = [];
+    let historicalGroupGoals: unknown[] = [];
+
+    if (groupGoalIds.length > 0) {
+      // Fetch group goals
+      const { data: groupGoalsData } = await supabase
+        .from("group_goals")
+        .select("id, owner_id, title, description, created_at, is_active, start_date, end_date, days_of_week, total_steps")
+        .in("id", groupGoalIds)
+        .eq("is_active", true);
+
+      // Fetch all members for these goals
+      const { data: allMembersData } = await supabase
+        .from("group_goal_members")
+        .select("group_goal_id, user_id")
+        .in("group_goal_id", groupGoalIds)
+        .is("left_at", null);
+
+      const membersByGoal = new Map<string, string[]>();
+      (allMembersData || []).forEach((m) => {
+        if (!membersByGoal.has(m.group_goal_id)) {
+          membersByGoal.set(m.group_goal_id, []);
+        }
+        membersByGoal.get(m.group_goal_id)!.push(m.user_id);
+      });
+
+      // Fetch statuses for all group goals on this date
+      const { data: groupStatusData } = await supabase
+        .from("group_daily_goal_status")
+        .select("group_goal_id, user_id, completed, completed_at")
+        .in("group_goal_id", groupGoalIds)
+        .eq("date", date);
+
+      const statusesByGoal = new Map<string, Map<string, { completed: boolean; completed_at: string | null }>>();
+      (groupStatusData || []).forEach((s) => {
+        if (!statusesByGoal.has(s.group_goal_id)) {
+          statusesByGoal.set(s.group_goal_id, new Map());
+        }
+        statusesByGoal.get(s.group_goal_id)!.set(s.user_id, {
+          completed: s.completed,
+          completed_at: s.completed_at,
+        });
+      });
+
+      // Process each group goal
+      (groupGoalsData || []).forEach((gg) => {
+        const members = membersByGoal.get(gg.id) || [];
+        const statuses = statusesByGoal.get(gg.id) || new Map();
+        
+        const membersTotal = members.length;
+        const membersCompleted = members.filter((uid) => statuses.get(uid)?.completed).length;
+        const selfStatus = statuses.get(user.id);
+        const selfCompleted = selfStatus?.completed ?? false;
+        const allCompleted = membersTotal > 0 && membersCompleted === membersTotal;
+        
+        // Check if goal is active for this day/date
+        const isActiveForDay = (gg.days_of_week || []).includes(dayOfWeek);
+        const isInDateRange = 
+          (!gg.start_date || gg.start_date <= date) &&
+          (!gg.end_date || gg.end_date >= date);
+        
+        const goalData = {
+          id: gg.id,
+          ownerId: gg.owner_id,
+          title: gg.title,
+          description: gg.description ?? undefined,
+          createdAt: gg.created_at,
+          isActive: gg.is_active,
+          startDate: gg.start_date,
+          endDate: gg.end_date,
+          daysOfWeek: gg.days_of_week ?? [],
+          totalSteps: gg.total_steps,
+          membersTotal,
+          membersCompleted,
+          selfCompleted,
+          allCompleted,
+          role: membershipMap.get(gg.id) || "member",
+        };
+
+        // Separate active vs historical
+        if (gg.end_date && gg.end_date < date) {
+          historicalGroupGoals.push(goalData);
+        } else if (isActiveForDay && isInDateRange) {
+          groupGoals.push(goalData);
+        }
+      });
+    }
+
     return NextResponse.json({
       date,
       weekStart,
@@ -236,6 +336,8 @@ export async function GET(request: Request) {
       weeklyGoals,
       inactiveGoals,
       completionStats: { total, completed, percentage },
+      groupGoals,
+      historicalGroupGoals,
     });
   } catch (e) {
     console.error(e);

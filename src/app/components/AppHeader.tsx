@@ -10,7 +10,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import { AddCircleOutline, BarChart } from "@mui/icons-material";
+import { AddCircleOutline } from "@mui/icons-material";
 import { SupabaseGoalsService } from "../(root)/goals/services/supabaseGoalsService";
 import { GoalForm } from "../(root)/goals/components/GoalForm";
 import { DayOfWeek, GoalType } from "../(root)/goals/types";
@@ -44,11 +44,6 @@ export const AppHeader: React.FC = () => {
     setAddGoalDialog(false);
   };
 
-  const handlePerformanceLog = () => {
-    // Performance monitoring is done through Supabase dashboard
-    showSnackbar("View performance in Supabase dashboard", "success");
-  };
-
   const handleSubmitGoal = async (
     title: string,
     description?: string,
@@ -80,6 +75,13 @@ export const AppHeader: React.FC = () => {
     }
   };
 
+  const handleGroupGoalCreated = () => {
+    showSnackbar("Group goal created successfully!");
+    handleCloseDialog();
+    // Trigger a refresh of the goals page
+    window.dispatchEvent(new CustomEvent("goalsUpdated"));
+  };
+
   return (
     <>
       <AppBar
@@ -96,13 +98,6 @@ export const AppHeader: React.FC = () => {
           <Image src="/logo_full_wide.svg" alt="Root" width={90} height={50} />
 
           <div>
-            <IconButton
-              color="primary"
-              onClick={handlePerformanceLog}
-              aria-label="performance log"
-            >
-              <BarChart />
-            </IconButton>
             <UserDropdown />
             <IconButton
               color="primary"
@@ -132,6 +127,7 @@ export const AppHeader: React.FC = () => {
           <GoalForm
             onSubmit={handleSubmitGoal}
             onCancel={handleCloseDialog}
+            onGroupGoalCreated={handleGroupGoalCreated}
             submitButtonText="Add Goal"
             title="Add New Goal"
             showCloseButton={true}

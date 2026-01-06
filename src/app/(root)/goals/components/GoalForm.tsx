@@ -12,10 +12,15 @@ import {
   Slider,
   ToggleButton,
   ToggleButtonGroup,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
 } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
+import { Close as CloseIcon, ContentCopy as ContentCopyIcon } from "@mui/icons-material";
 import { DayOfWeekSelector } from "./DayOfWeekSelector";
-import { DayOfWeek, DAYS_OF_WEEK, GoalType } from "../types";
+import { DayOfWeek, DAYS_OF_WEEK, GoalType, GoalKind } from "../types";
 
 interface GoalFormProps {
   onSubmit: (
@@ -39,6 +44,7 @@ interface GoalFormProps {
     totalSteps?: number;
     goalType?: GoalType;
   };
+  onGroupGoalCreated?: () => void;
 }
 
 export const GoalForm: React.FC<GoalFormProps> = ({
@@ -49,6 +55,7 @@ export const GoalForm: React.FC<GoalFormProps> = ({
   title = "Add New Goal",
   showCloseButton = true,
   initialValues,
+  onGroupGoalCreated,
 }) => {
   const [goalTitle, setGoalTitle] = useState(initialValues?.title || "");
   const [description, setDescription] = useState(
@@ -64,7 +71,17 @@ export const GoalForm: React.FC<GoalFormProps> = ({
   const [goalType, setGoalType] = useState<GoalType>(
     initialValues?.goalType || GoalType.DAILY
   );
+  const [goalKind, setGoalKind] = useState<GoalKind>(GoalKind.PERSONAL);
+  const [startDate, setStartDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [endDate, setEndDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [inviteLinkDialog, setInviteLinkDialog] = useState<{
+    open: boolean;
+    token: string | null;
+  }>({ open: false, token: null });
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Update form when initial values change
   useEffect(() => {
@@ -85,18 +102,41 @@ export const GoalForm: React.FC<GoalFormProps> = ({
 
     setIsSubmitting(true);
     try {
-      // For weekly goals, use all days of the week since they're tracked weekly
-      const daysForGoal =
-        goalType === GoalType.WEEKLY ? [...DAYS_OF_WEEK] : selectedDays;
+      if (goalKind === GoalKind.GROUP) {
+        // Create group goal via API
+        const res = await fetch("/api/group-goals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: goalTitle.trim(),
+            description: description.trim() || undefined,
+            daysOfWeek: selectedDays,
+            startDate,
+            endDate: endDate || undefined,
+          }),
+        });
 
-      await onSubmit(
-        goalTitle.trim(),
-        description.trim() || undefined,
-        daysForGoal,
-        isMultiStep,
-        totalSteps,
-        goalType
-      );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.inviteToken) {
+            setInviteLinkDialog({ open: true, token: data.inviteToken });
+          }
+          onGroupGoalCreated?.();
+        }
+      } else {
+        // Personal goal
+        const daysForGoal =
+          goalType === GoalType.WEEKLY ? [...DAYS_OF_WEEK] : selectedDays;
+
+        await onSubmit(
+          goalTitle.trim(),
+          description.trim() || undefined,
+          daysForGoal,
+          isMultiStep,
+          totalSteps,
+          goalType
+        );
+      }
 
       // Reset form after successful submission
       setGoalTitle("");
@@ -105,11 +145,28 @@ export const GoalForm: React.FC<GoalFormProps> = ({
       setIsMultiStep(false);
       setTotalSteps(1);
       setGoalType(GoalType.DAILY);
+      setGoalKind(GoalKind.PERSONAL);
+      setStartDate(new Date().toISOString().split("T")[0]);
+      setEndDate("");
     } catch (error) {
       console.error("Error submitting goal:", error);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCopyInviteLink = () => {
+    if (inviteLinkDialog.token) {
+      const inviteUrl = `${window.location.origin}/invite/${inviteLinkDialog.token}`;
+      navigator.clipboard.writeText(inviteUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
+
+  const handleCloseInviteDialog = () => {
+    setInviteLinkDialog({ open: false, token: null });
+    setLinkCopied(false);
   };
 
   const handleCancel = () => {
@@ -164,31 +221,90 @@ export const GoalForm: React.FC<GoalFormProps> = ({
 
         <Box sx={{ mb: 2 }}>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Goal Type
+            Goal Kind
           </Typography>
           <ToggleButtonGroup
             color="primary"
-            value={goalType}
+            value={goalKind}
             exclusive
-            onChange={(_, newGoalType) => {
-              if (newGoalType !== null) {
-                setGoalType(newGoalType);
+            onChange={(_, newKind) => {
+              if (newKind !== null) {
+                setGoalKind(newKind);
+                // Reset multi-step for group goals
+                if (newKind === GoalKind.GROUP) {
+                  setIsMultiStep(false);
+                  setTotalSteps(1);
+                  setGoalType(GoalType.DAILY);
+                }
               }
             }}
             disabled={isSubmitting || loading}
             size="small"
-            sx={{ width: "100%" }}
+            sx={{ width: "100%", mb: 2 }}
           >
-            <ToggleButton value={GoalType.DAILY} sx={{ flex: 1 }}>
-              Daily
+            <ToggleButton value={GoalKind.PERSONAL} sx={{ flex: 1 }}>
+              Personal
             </ToggleButton>
-            <ToggleButton value={GoalType.WEEKLY} sx={{ flex: 1 }}>
-              Weekly
+            <ToggleButton value={GoalKind.GROUP} sx={{ flex: 1 }}>
+              Group
             </ToggleButton>
           </ToggleButtonGroup>
         </Box>
 
-        {goalType === GoalType.DAILY && (
+        {goalKind === GoalKind.PERSONAL && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Goal Type
+            </Typography>
+            <ToggleButtonGroup
+              color="primary"
+              value={goalType}
+              exclusive
+              onChange={(_, newGoalType) => {
+                if (newGoalType !== null) {
+                  setGoalType(newGoalType);
+                }
+              }}
+              disabled={isSubmitting || loading}
+              size="small"
+              sx={{ width: "100%" }}
+            >
+              <ToggleButton value={GoalType.DAILY} sx={{ flex: 1 }}>
+                Daily
+              </ToggleButton>
+              <ToggleButton value={GoalType.WEEKLY} sx={{ flex: 1 }}>
+                Weekly
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        )}
+
+        {goalKind === GoalKind.GROUP && (
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              label="Start Date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              fullWidth
+              disabled={isSubmitting || loading}
+              sx={{ mb: 1 }}
+              InputLabelProps={{ shrink: true }}
+              required
+            />
+            <TextField
+              label="End Date (optional)"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              fullWidth
+              disabled={isSubmitting || loading}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Box>
+        )}
+
+        {(goalType === GoalType.DAILY || goalKind === GoalKind.GROUP) && (
           <Box sx={{ mb: 2 }}>
             <DayOfWeekSelector
               selectedDays={selectedDays}
@@ -198,35 +314,37 @@ export const GoalForm: React.FC<GoalFormProps> = ({
           </Box>
         )}
 
-        <Box sx={{ mb: 2 }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={isMultiStep}
-                onChange={(e) => setIsMultiStep(e.target.checked)}
-                disabled={isSubmitting || loading}
-              />
-            }
-            label="Multi-step goal"
-          />
+        {goalKind === GoalKind.PERSONAL && (
+          <Box sx={{ mb: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={isMultiStep}
+                  onChange={(e) => setIsMultiStep(e.target.checked)}
+                  disabled={isSubmitting || loading}
+                />
+              }
+              label="Multi-step goal"
+            />
 
-          {isMultiStep && (
-            <Box sx={{ mt: 2 }}>
-              <Typography>Number of steps: {totalSteps}</Typography>
-              <Slider
-                value={totalSteps}
-                onChange={(_, value) => setTotalSteps(value as number)}
-                min={2}
-                max={7}
-                marks
-                step={1}
-                disabled={isSubmitting || loading}
-                valueLabelDisplay="auto"
-                sx={{ width: "100%" }}
-              />
-            </Box>
-          )}
-        </Box>
+            {isMultiStep && (
+              <Box sx={{ mt: 2 }}>
+                <Typography>Number of steps: {totalSteps}</Typography>
+                <Slider
+                  value={totalSteps}
+                  onChange={(_, value) => setTotalSteps(value as number)}
+                  min={2}
+                  max={7}
+                  marks
+                  step={1}
+                  disabled={isSubmitting || loading}
+                  valueLabelDisplay="auto"
+                  sx={{ width: "100%" }}
+                />
+              </Box>
+            )}
+          </Box>
+        )}
 
         <Box display="flex" gap={2} justifyContent="flex-end">
           {onCancel && (
@@ -247,6 +365,46 @@ export const GoalForm: React.FC<GoalFormProps> = ({
           </Button>
         </Box>
       </form>
+
+      {/* Invite Link Dialog */}
+      <Dialog
+        open={inviteLinkDialog.open}
+        onClose={handleCloseInviteDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Group Goal Created!</DialogTitle>
+        <DialogContent>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Your group goal has been created successfully.
+          </Alert>
+          <Typography variant="body2" gutterBottom>
+            Share this invite link with others to let them join:
+          </Typography>
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              backgroundColor: "grey.100",
+              borderRadius: 1,
+              wordBreak: "break-all",
+            }}
+          >
+            <Typography variant="body2" fontFamily="monospace">
+              {inviteLinkDialog.token &&
+                `${window.location.origin}/invite/${inviteLinkDialog.token}`}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCopyInviteLink} startIcon={<ContentCopyIcon />}>
+            {linkCopied ? "Copied!" : "Copy Link"}
+          </Button>
+          <Button onClick={handleCloseInviteDialog} variant="contained">
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
