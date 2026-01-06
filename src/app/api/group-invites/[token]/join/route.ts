@@ -55,7 +55,10 @@ export async function POST(
     }
 
     if (invite.revoked_at) {
-      return NextResponse.json({ error: "Invite has been revoked" }, { status: 410 });
+      return NextResponse.json(
+        { error: "Invite has been revoked" },
+        { status: 410 }
+      );
     }
 
     // Check if user is already a member
@@ -118,4 +121,3 @@ export async function POST(
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-

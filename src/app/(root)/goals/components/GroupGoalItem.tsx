@@ -69,7 +69,9 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
 
     try {
       const date = selectedDate || getTodayString();
-      const res = await fetch(`/api/group-goals/${groupGoal.id}/status?date=${date}`);
+      const res = await fetch(
+        `/api/group-goals/${groupGoal.id}/status?date=${date}`
+      );
       if (res.ok) {
         const data = await res.json();
         setMemberStats(data.memberStats || []);
@@ -81,22 +83,34 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
     }
   };
 
-  const handleCopyInviteLink = async () => {
+  const handleShareInviteLink = async () => {
     try {
       const res = await fetch(`/api/group-goals/${groupGoal.id}/invite`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.token) {
-          const inviteUrl = `${window.location.origin}/invite/${data.token}`;
-          await navigator.clipboard.writeText(inviteUrl);
-          setInviteLinkCopied(true);
-          setTimeout(() => setInviteLinkCopied(false), 2000);
-        }
+      if (!res.ok) return;
+
+      const data = await res.json();
+      if (!data.token) return;
+
+      const inviteUrl = `${window.location.origin}/invite/${data.token}`;
+      const shareText = `You are invited to a group goal (${groupGoal.title})`;
+
+      if (navigator.share) {
+        await navigator.share({
+          title: "Group Goal Invite",
+          text: shareText,
+          url: inviteUrl,
+        });
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(inviteUrl);
+        setInviteLinkCopied(true);
+        setTimeout(() => setInviteLinkCopied(false), 2000);
       }
     } catch (err) {
-      console.error("Error copying invite link:", err);
+      console.error("Error sharing invite link:", err);
+    } finally {
+      handleMenuClose();
     }
-    handleMenuClose();
   };
 
   const handleLeave = async () => {
@@ -119,7 +133,11 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this group goal? All members will lose access.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this group goal? All members will lose access."
+      )
+    ) {
       handleMenuClose();
       return;
     }
@@ -138,7 +156,7 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
   };
 
   const getCheckboxColor = () => {
-    if (groupGoal.allCompleted) return "success.main"; // Gold when all complete
+    if (groupGoal.allCompleted) return "#FFD700"; // Gold when all complete
     if (groupGoal.selfCompleted) return "success.main"; // Green when self complete
     return "primary.main";
   };
@@ -164,12 +182,15 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
           opacity: groupGoal.selfCompleted ? 0.8 : 1,
           backgroundColor: "background.paper",
           borderColor: getBorderColor(),
-          borderWidth: groupGoal.selfCompleted || groupGoal.allCompleted ? 2 : 1,
+          borderWidth:
+            groupGoal.selfCompleted || groupGoal.allCompleted ? 2 : 1,
           transition: "all 0.2s ease-in-out",
           boxShadow: 2,
         }}
       >
-        <CardContent sx={{ py: 1.5, pr: 2, pl: 1, "&:last-child": { pb: 1.5 } }}>
+        <CardContent
+          sx={{ py: 1.5, pr: 2, pl: 1, "&:last-child": { pb: 1.5 } }}
+        >
           <Box
             display="flex"
             flexDirection={"row-reverse"}
@@ -190,26 +211,17 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
                   <Typography
                     variant="h6"
                     sx={{
-                      textDecoration: groupGoal.selfCompleted ? "line-through" : "none",
-                      color: groupGoal.selfCompleted ? "text.secondary" : "text.primary",
+                      textDecoration: groupGoal.selfCompleted
+                        ? "line-through"
+                        : "none",
+                      color: groupGoal.selfCompleted
+                        ? "text.secondary"
+                        : "text.primary",
                       fontWeight: groupGoal.selfCompleted ? 400 : 500,
                       fontSize: "1.1rem",
                     }}
                   >
                     {groupGoal.title}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      backgroundColor: "primary.main",
-                      color: "white",
-                      px: 1,
-                      py: 0.25,
-                      borderRadius: 1,
-                      fontSize: "0.7rem",
-                    }}
-                  >
-                    GROUP
                   </Typography>
                 </Box>
               </Box>
@@ -226,7 +238,11 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
                 <Box position="relative">
                   <CircularProgress
                     variant="determinate"
-                    value={(groupGoal.membersCompleted / Math.max(groupGoal.membersTotal, 1)) * 100}
+                    value={
+                      (groupGoal.membersCompleted /
+                        Math.max(groupGoal.membersTotal, 1)) *
+                      100
+                    }
                     size={42}
                     sx={{
                       color: getProgressColor(),
@@ -296,19 +312,27 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
                   View Group Status
                 </MenuItem>
                 {groupGoal.role === "owner" && [
-                  <MenuItem key="invite" onClick={handleCopyInviteLink}>
+                  <MenuItem key="invite" onClick={handleShareInviteLink}>
                     <LinkIcon sx={{ mr: 1, fontSize: 20 }} />
-                    {inviteLinkCopied ? "Link Copied!" : "Copy Invite Link"}
+                    {inviteLinkCopied ? "Link Copied!" : "Invite to Goal"}
                   </MenuItem>,
                   <Divider key="owner-divider" />,
-                  <MenuItem key="delete" onClick={handleDelete} sx={{ color: "error.main" }}>
+                  <MenuItem
+                    key="delete"
+                    onClick={handleDelete}
+                    sx={{ color: "error.main" }}
+                  >
                     <DeleteIcon sx={{ mr: 1, fontSize: 20 }} />
                     Delete Group Goal
                   </MenuItem>,
                 ]}
                 {groupGoal.role === "member" && [
                   <Divider key="member-divider" />,
-                  <MenuItem key="leave" onClick={handleLeave} sx={{ color: "warning.main" }}>
+                  <MenuItem
+                    key="leave"
+                    onClick={handleLeave}
+                    sx={{ color: "warning.main" }}
+                  >
                     <ExitToAppIcon sx={{ mr: 1, fontSize: 20 }} />
                     Leave Group
                   </MenuItem>,
@@ -362,7 +386,13 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
                     }
                     secondary={
                       member.completed
-                        ? `Completed ${member.completedAt ? new Date(member.completedAt).toLocaleTimeString() : ""}`
+                        ? `Completed ${
+                            member.completedAt
+                              ? new Date(
+                                  member.completedAt
+                                ).toLocaleTimeString()
+                              : ""
+                          }`
                         : "Not completed"
                     }
                   />
@@ -386,4 +416,3 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
     </>
   );
 };
-

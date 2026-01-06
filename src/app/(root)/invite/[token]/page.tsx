@@ -53,7 +53,7 @@ export default function InvitePage({ params }: InvitePageProps) {
       try {
         setLoading(true);
         const res = await fetch(`/api/group-invites/${token}`);
-        
+
         if (!res.ok) {
           if (res.status === 404) {
             setError("Invite not found or expired.");
@@ -210,7 +210,7 @@ export default function InvitePage({ params }: InvitePageProps) {
             >
               <GroupSharp sx={{ fontSize: 48, color: "primary.main" }} />
             </Box>
-            
+
             <Typography variant="h4" gutterBottom fontWeight="bold">
               {groupGoal.title}
             </Typography>
@@ -241,11 +241,17 @@ export default function InvitePage({ params }: InvitePageProps) {
               <Box display="flex" alignItems="center" gap={1}>
                 <People fontSize="small" color="action" />
                 <Typography variant="body2" color="text.secondary">
-                  {groupGoal.memberCount} member{groupGoal.memberCount !== 1 ? "s" : ""}
+                  {groupGoal.memberCount} member
+                  {groupGoal.memberCount !== 1 ? "s" : ""}
                 </Typography>
               </Box>
 
-              <Box display="flex" gap={0.5} flexWrap="wrap" justifyContent="center">
+              <Box
+                display="flex"
+                gap={0.5}
+                flexWrap="wrap"
+                justifyContent="center"
+              >
                 {groupGoal.daysOfWeek.map((day) => (
                   <Chip
                     key={day}
@@ -269,7 +275,12 @@ export default function InvitePage({ params }: InvitePageProps) {
             </Button>
 
             {!user && (
-              <Typography variant="caption" color="text.secondary" display="block" mt={2}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                mt={2}
+              >
                 You&apos;ll need an account to join this group goal
               </Typography>
             )}
@@ -281,4 +292,3 @@ export default function InvitePage({ params }: InvitePageProps) {
     </>
   );
 }
-

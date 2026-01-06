@@ -1,8 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { Box, Typography, Alert, CircularProgress, Paper, Collapse, Button } from "@mui/material";
-import { Assignment as AssignmentIcon, ExpandMore as ExpandMoreIcon } from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  Alert,
+  CircularProgress,
+  Paper,
+  Collapse,
+  Button,
+} from "@mui/material";
+import {
+  Assignment as AssignmentIcon,
+  ExpandMore as ExpandMoreIcon,
+} from "@mui/icons-material";
 import { GoalWithStatus, GroupGoalWithStatus } from "../types";
 import { GoalItem } from "./GoalItem";
 import { GroupGoalItem } from "./GroupGoalItem";
@@ -68,7 +79,11 @@ export const GoalsList: React.FC<GoalsListProps> = ({
     );
   }
 
-  if (goals.length === 0 && weeklyGoals.length === 0 && groupGoals.length === 0) {
+  if (
+    goals.length === 0 &&
+    weeklyGoals.length === 0 &&
+    groupGoals.length === 0
+  ) {
     return (
       <Paper
         sx={{
@@ -127,7 +142,9 @@ export const GoalsList: React.FC<GoalsListProps> = ({
             endIcon={
               <ExpandMoreIcon
                 sx={{
-                  transform: showHistoricalGroups ? "rotate(180deg)" : "rotate(0deg)",
+                  transform: showHistoricalGroups
+                    ? "rotate(180deg)"
+                    : "rotate(0deg)",
                   transition: "transform 0.3s",
                 }}
               />

@@ -149,11 +149,7 @@ export default function AuthModal({ open, onClose }: AuthModalProps) {
             sx={{ mt: 3, mb: 2 }}
             disabled={loading}
           >
-            {loading
-              ? "Loading..."
-              : tab === "signin"
-                ? "Sign In"
-                : "Sign Up"}
+            {loading ? "Loading..." : tab === "signin" ? "Sign In" : "Sign Up"}
           </Button>
 
           {tab === "signin" && (
@@ -166,4 +162,3 @@ export default function AuthModal({ open, onClose }: AuthModalProps) {
     </Dialog>
   );
 }
-

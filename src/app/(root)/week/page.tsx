@@ -128,8 +128,8 @@ const WeekView = React.memo(() => {
               completed: !!s.completed,
               completedAt: s.completedAt ? new Date(s.completedAt) : undefined,
               completedSteps: s.completedSteps ?? 0,
-              stepCompletions: (s.stepCompletions || []).map((ts: string | null) =>
-                ts ? new Date(ts) : undefined
+              stepCompletions: (s.stepCompletions || []).map(
+                (ts: string | null) => (ts ? new Date(ts) : undefined)
               ),
               snoozed: !!s.snoozed,
             })),
@@ -146,8 +146,8 @@ const WeekView = React.memo(() => {
             goalType: g.goalType as GoalType,
             daysOfWeek: g.daysOfWeek as DayOfWeek[],
             completedAt: g.completedAt ? new Date(g.completedAt) : undefined,
-            stepCompletions: (g.stepCompletions || []).map((ts: string | null) =>
-              ts ? new Date(ts) : undefined
+            stepCompletions: (g.stepCompletions || []).map(
+              (ts: string | null) => (ts ? new Date(ts) : undefined)
             ),
           })) as GoalWithStatus[],
         ])

@@ -67,7 +67,10 @@ export async function PATCH(
     }
 
     if (!data) {
-      return NextResponse.json({ error: "Group goal not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Group goal not found" },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({
@@ -134,4 +137,3 @@ export async function DELETE(
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-

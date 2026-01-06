@@ -224,7 +224,9 @@ export async function GET(request: Request) {
 
     // Build weeklyGoals by date using a single weekly status payload
     const weeklyGoalsByDate: Record<string, WeeklyGoalWithStatusDTO[]> = {};
-    const weeklyGoals = allGoals.filter((g) => g.goalType === "weekly") as Array<{
+    const weeklyGoals = allGoals.filter(
+      (g) => g.goalType === "weekly"
+    ) as Array<{
       id: string;
       title: string;
       description?: string;
@@ -278,7 +280,9 @@ export async function GET(request: Request) {
       // Fetch group goals
       const { data: groupGoalsData } = await supabase
         .from("group_goals")
-        .select("id, owner_id, title, description, created_at, is_active, start_date, end_date, days_of_week, total_steps")
+        .select(
+          "id, owner_id, title, description, created_at, is_active, start_date, end_date, days_of_week, total_steps"
+        )
         .in("id", groupGoalIds)
         .eq("is_active", true);
 
@@ -305,7 +309,13 @@ export async function GET(request: Request) {
         .gte("date", weekStart)
         .lte("date", weekEnd);
 
-      const statusesByGoalAndDate = new Map<string, Map<string, Map<string, { completed: boolean; completed_at: string | null }>>>();
+      const statusesByGoalAndDate = new Map<
+        string,
+        Map<
+          string,
+          Map<string, { completed: boolean; completed_at: string | null }>
+        >
+      >();
       (groupStatusData || []).forEach((s) => {
         if (!statusesByGoalAndDate.has(s.group_goal_id)) {
           statusesByGoalAndDate.set(s.group_goal_id, new Map());
@@ -322,24 +332,30 @@ export async function GET(request: Request) {
 
       // Process each group goal for each date
       weekDates.forEach((d) => {
-        const dayOfWeek = new Date(d).toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
-        
+        const dayOfWeek = new Date(d)
+          .toLocaleDateString("en-US", { weekday: "long" })
+          .toLowerCase();
+
         (groupGoalsData || []).forEach((gg) => {
           const members = membersByGoal.get(gg.id) || [];
-          const dateStatuses = statusesByGoalAndDate.get(gg.id)?.get(d) || new Map();
-          
+          const dateStatuses =
+            statusesByGoalAndDate.get(gg.id)?.get(d) || new Map();
+
           const membersTotal = members.length;
-          const membersCompleted = members.filter((uid) => dateStatuses.get(uid)?.completed).length;
+          const membersCompleted = members.filter(
+            (uid) => dateStatuses.get(uid)?.completed
+          ).length;
           const selfStatus = dateStatuses.get(user.id);
           const selfCompleted = selfStatus?.completed ?? false;
-          const allCompleted = membersTotal > 0 && membersCompleted === membersTotal;
-          
+          const allCompleted =
+            membersTotal > 0 && membersCompleted === membersTotal;
+
           // Check if goal is active for this day/date
           const isActiveForDay = (gg.days_of_week || []).includes(dayOfWeek);
-          const isInDateRange = 
+          const isInDateRange =
             (!gg.start_date || gg.start_date <= d) &&
             (!gg.end_date || gg.end_date >= d);
-          
+
           if (isActiveForDay && isInDateRange) {
             groupGoalsByDate[d].push({
               id: gg.id,
@@ -376,5 +392,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-
-

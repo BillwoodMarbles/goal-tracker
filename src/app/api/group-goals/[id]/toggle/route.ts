@@ -101,15 +101,13 @@ export async function POST(
       }
     } else {
       // Insert new
-      const { error } = await supabase
-        .from("group_daily_goal_status")
-        .insert({
-          group_goal_id: id,
-          user_id: user.id,
-          date,
-          completed: newCompleted,
-          completed_at: newCompleted ? new Date().toISOString() : null,
-        });
+      const { error } = await supabase.from("group_daily_goal_status").insert({
+        group_goal_id: id,
+        user_id: user.id,
+        date,
+        completed: newCompleted,
+        completed_at: newCompleted ? new Date().toISOString() : null,
+      });
 
       if (error) {
         console.error("Error creating group goal status:", error);
@@ -126,4 +124,3 @@ export async function POST(
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-

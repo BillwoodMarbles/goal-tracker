@@ -18,7 +18,10 @@ import {
   DialogActions,
   Alert,
 } from "@mui/material";
-import { Close as CloseIcon, ContentCopy as ContentCopyIcon } from "@mui/icons-material";
+import {
+  Close as CloseIcon,
+  ContentCopy as ContentCopyIcon,
+} from "@mui/icons-material";
 import { DayOfWeekSelector } from "./DayOfWeekSelector";
 import { DayOfWeek, DAYS_OF_WEEK, GoalType, GoalKind } from "../types";
 
@@ -397,7 +400,10 @@ export const GoalForm: React.FC<GoalFormProps> = ({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCopyInviteLink} startIcon={<ContentCopyIcon />}>
+          <Button
+            onClick={handleCopyInviteLink}
+            startIcon={<ContentCopyIcon />}
+          >
             {linkCopied ? "Copied!" : "Copy Link"}
           </Button>
           <Button onClick={handleCloseInviteDialog} variant="contained">

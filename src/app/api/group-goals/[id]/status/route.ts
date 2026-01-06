@@ -117,17 +117,19 @@ export async function GET(
     const statusMap = new Map(statuses?.map((s) => [s.user_id, s]) || []);
     const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
-    const memberStats = members?.map((member) => {
-      const profile = profileMap.get(member.user_id);
-      const status = statusMap.get(member.user_id);
-      return {
-        userId: member.user_id,
-        displayName: profile?.display_name || `Member ${member.user_id.slice(0, 8)}`,
-        role: member.role,
-        completed: status?.completed || false,
-        completedAt: status?.completed_at || null,
-      };
-    }) || [];
+    const memberStats =
+      members?.map((member) => {
+        const profile = profileMap.get(member.user_id);
+        const status = statusMap.get(member.user_id);
+        return {
+          userId: member.user_id,
+          displayName:
+            profile?.display_name || `Member ${member.user_id.slice(0, 8)}`,
+          role: member.role,
+          completed: status?.completed || false,
+          completedAt: status?.completed_at || null,
+        };
+      }) || [];
 
     return NextResponse.json({ memberStats });
   } catch (e) {
@@ -135,4 +137,3 @@ export async function GET(
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-
