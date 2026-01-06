@@ -43,9 +43,11 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { endDate, daysOfWeek, description } = body;
+    const { title, description, startDate, endDate, daysOfWeek } = body;
 
     const updateData: Record<string, unknown> = {};
+    if (title !== undefined) updateData.title = title;
+    if (startDate !== undefined) updateData.start_date = startDate;
     if (endDate !== undefined) updateData.end_date = endDate;
     if (daysOfWeek !== undefined) updateData.days_of_week = daysOfWeek;
     if (description !== undefined) updateData.description = description;

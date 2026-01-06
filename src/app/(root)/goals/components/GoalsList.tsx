@@ -33,6 +33,7 @@ interface GoalsListProps {
   onDeleteGoal?: (goalId: string) => void;
   onSnoozeGoal?: (goalId: string) => void;
   onToggleGroupGoal?: (groupGoalId: string) => void;
+  onEditGroupGoal?: (groupGoalId: string) => void;
   onRefreshGoals?: () => void;
   isReadOnly?: boolean;
   selectedDate?: string;
@@ -58,6 +59,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
   onDeleteGoal,
   onSnoozeGoal,
   onToggleGroupGoal,
+  onEditGroupGoal,
   onRefreshGoals,
   isReadOnly = false,
   selectedDate,
@@ -127,6 +129,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               key={groupGoal.id}
               groupGoal={groupGoal}
               onToggle={onToggleGroupGoal || (() => {})}
+              onEdit={onEditGroupGoal}
               onRefresh={onRefreshGoals}
               selectedDate={selectedDate}
             />
@@ -160,6 +163,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({
                   key={groupGoal.id}
                   groupGoal={groupGoal}
                   onToggle={onToggleGroupGoal || (() => {})}
+                  onEdit={onEditGroupGoal}
                   onRefresh={onRefreshGoals}
                   selectedDate={selectedDate}
                 />

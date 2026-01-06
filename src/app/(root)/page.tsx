@@ -7,16 +7,17 @@ import {
   Alert,
   Snackbar,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
   Container,
+  TextField,
 } from "@mui/material";
 import { useGoals } from "./goals/hooks/useGoals";
 import { useDateNavigation } from "./goals/hooks/useDateNavigation";
 import { GoalForm } from "./goals/components/GoalForm";
 import { DayOfWeek, DAYS_OF_WEEK, GoalType } from "./goals/types";
+import { DayOfWeekSelector } from "./goals/components/DayOfWeekSelector";
 
 import { GoalsList } from "./goals/components/GoalsList";
 import { DateNavigation } from "./goals/components/DateNavigation";
@@ -78,6 +79,24 @@ const Goals = () => {
     goalId: null,
     goalTitle: "",
   });
+
+  const [editGroupDialog, setEditGroupDialog] = useState<{
+    open: boolean;
+    groupGoalId: string | null;
+    groupGoalData: {
+      title: string;
+      description: string;
+      startDate: string;
+      endDate: string;
+      daysOfWeek: DayOfWeek[];
+    } | null;
+  }>({
+    open: false,
+    groupGoalId: null,
+    groupGoalData: null,
+  });
+
+  const [groupEditSaving, setGroupEditSaving] = useState(false);
 
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
@@ -232,6 +251,81 @@ const Goals = () => {
     });
   };
 
+  const handleEditGroupGoal = (groupGoalId: string) => {
+    const gg =
+      groupGoals.find((g) => g.id === groupGoalId) ||
+      historicalGroupGoals.find((g) => g.id === groupGoalId);
+
+    if (!gg) return;
+
+    // Only owners should be able to edit (UI also guards in GroupGoalItem)
+    if (gg.role !== "owner") return;
+
+    setEditGroupDialog({
+      open: true,
+      groupGoalId,
+      groupGoalData: {
+        title: gg.title,
+        description: gg.description || "",
+        startDate: gg.startDate,
+        endDate: gg.endDate || "",
+        daysOfWeek: gg.daysOfWeek || [...DAYS_OF_WEEK],
+      },
+    });
+  };
+
+  const handleCancelEditGroupGoal = () => {
+    if (groupEditSaving) return;
+    setEditGroupDialog({ open: false, groupGoalId: null, groupGoalData: null });
+  };
+
+  const handleUpdateGroupGoal = async () => {
+    if (!editGroupDialog.groupGoalId || !editGroupDialog.groupGoalData) return;
+    if (groupEditSaving) return;
+
+    const { title, description, startDate, endDate, daysOfWeek } =
+      editGroupDialog.groupGoalData;
+
+    if (!title.trim() || !startDate) {
+      showSnackbar("Title and start date are required", "error");
+      return;
+    }
+
+    setGroupEditSaving(true);
+    try {
+      const res = await fetch(`/api/group-goals/${editGroupDialog.groupGoalId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          // Send null to explicitly clear optional fields
+          description: description.trim() ? description.trim() : null,
+          startDate,
+          endDate: endDate ? endDate : null,
+          daysOfWeek,
+        }),
+      });
+
+      if (!res.ok) {
+        showSnackbar("Failed to update group goal", "error");
+        return;
+      }
+
+      showSnackbar("Group goal updated successfully!");
+      setEditGroupDialog({
+        open: false,
+        groupGoalId: null,
+        groupGoalData: null,
+      });
+      refresh();
+    } catch (err) {
+      console.error("Error updating group goal:", err);
+      showSnackbar("Failed to update group goal", "error");
+    } finally {
+      setGroupEditSaving(false);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!deleteDialog.goalId) return;
 
@@ -294,6 +388,7 @@ const Goals = () => {
           onDeleteGoal={handleDeleteGoal}
           onSnoozeGoal={handleSnoozeGoal}
           onToggleGroupGoal={toggleGroupGoal}
+          onEditGroupGoal={handleEditGroupGoal}
           onRefreshGoals={refresh}
           isReadOnly={isFuture}
           selectedDate={selectedDate}
@@ -319,6 +414,146 @@ const Goals = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Edit Group Goal Dialog */}
+        <Dialog
+          open={editGroupDialog.open}
+          onClose={handleCancelEditGroupGoal}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogContent sx={{ p: 3 }}>
+            <Box display="flex" flexDirection="column" gap={2}>
+              <Typography variant="h6">Edit Group Goal</Typography>
+
+              <TextField
+                label="Goal Title"
+                value={editGroupDialog.groupGoalData?.title || ""}
+                onChange={(e) =>
+                  setEditGroupDialog((prev) =>
+                    prev.groupGoalData
+                      ? {
+                          ...prev,
+                          groupGoalData: {
+                            ...prev.groupGoalData,
+                            title: e.target.value,
+                          },
+                        }
+                      : prev
+                  )
+                }
+                fullWidth
+                required
+                disabled={groupEditSaving}
+              />
+
+              <TextField
+                label="Description (optional)"
+                value={editGroupDialog.groupGoalData?.description || ""}
+                onChange={(e) =>
+                  setEditGroupDialog((prev) =>
+                    prev.groupGoalData
+                      ? {
+                          ...prev,
+                          groupGoalData: {
+                            ...prev.groupGoalData,
+                            description: e.target.value,
+                          },
+                        }
+                      : prev
+                  )
+                }
+                fullWidth
+                multiline
+                rows={2}
+                disabled={groupEditSaving}
+              />
+
+              <Box>
+                <TextField
+                  label="Start Date"
+                  type="date"
+                  value={editGroupDialog.groupGoalData?.startDate || ""}
+                  onChange={(e) =>
+                    setEditGroupDialog((prev) =>
+                      prev.groupGoalData
+                        ? {
+                            ...prev,
+                            groupGoalData: {
+                              ...prev.groupGoalData,
+                              startDate: e.target.value,
+                            },
+                          }
+                        : prev
+                    )
+                  }
+                  fullWidth
+                  required
+                  disabled={groupEditSaving}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ mb: 1 }}
+                />
+                <TextField
+                  label="End Date (optional)"
+                  type="date"
+                  value={editGroupDialog.groupGoalData?.endDate || ""}
+                  onChange={(e) =>
+                    setEditGroupDialog((prev) =>
+                      prev.groupGoalData
+                        ? {
+                            ...prev,
+                            groupGoalData: {
+                              ...prev.groupGoalData,
+                              endDate: e.target.value,
+                            },
+                          }
+                        : prev
+                    )
+                  }
+                  fullWidth
+                  disabled={groupEditSaving}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Box>
+
+              <DayOfWeekSelector
+                selectedDays={editGroupDialog.groupGoalData?.daysOfWeek || []}
+                onDaysChange={(days) =>
+                  setEditGroupDialog((prev) =>
+                    prev.groupGoalData
+                      ? {
+                          ...prev,
+                          groupGoalData: { ...prev.groupGoalData, daysOfWeek: days },
+                        }
+                      : prev
+                  )
+                }
+                disabled={groupEditSaving}
+              />
+
+              <Box display="flex" gap={2} justifyContent="flex-end">
+                <Button
+                  variant="outlined"
+                  onClick={handleCancelEditGroupGoal}
+                  disabled={groupEditSaving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleUpdateGroupGoal}
+                  disabled={
+                    groupEditSaving ||
+                    !editGroupDialog.groupGoalData?.title?.trim() ||
+                    !editGroupDialog.groupGoalData?.startDate
+                  }
+                >
+                  {groupEditSaving ? "Saving..." : "Update Group Goal"}
+                </Button>
+              </Box>
+            </Box>
+          </DialogContent>
+        </Dialog>
+
         {/* Delete Confirmation Dialog */}
         <Dialog
           open={deleteDialog.open}
@@ -326,8 +561,10 @@ const Goals = () => {
             setDeleteDialog({ open: false, goalId: null, goalTitle: "" })
           }
         >
-          <DialogTitle>Delete Goal</DialogTitle>
           <DialogContent>
+            <Typography variant="h6" sx={{ mb: 1 }}>
+              Delete Goal
+            </Typography>
             <Typography>
               Are you sure you want to delete &quot;{deleteDialog.goalTitle}
               &quot;? This action cannot be undone.

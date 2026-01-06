@@ -27,6 +27,7 @@ import {
   Link as LinkIcon,
   ExitToApp as ExitToAppIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
 } from "@mui/icons-material";
 import { GroupGoalWithStatus, GroupGoalMemberStatus } from "../types";
 import { getTodayString } from "../services/supabaseGoalsService";
@@ -34,6 +35,7 @@ import { getTodayString } from "../services/supabaseGoalsService";
 interface GroupGoalItemProps {
   groupGoal: GroupGoalWithStatus;
   onToggle: (groupGoalId: string) => void;
+  onEdit?: (groupGoalId: string) => void;
   onRefresh?: () => void;
   selectedDate?: string;
 }
@@ -41,6 +43,7 @@ interface GroupGoalItemProps {
 export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
   groupGoal,
   onToggle,
+  onEdit,
   onRefresh,
   selectedDate,
 }) => {
@@ -49,6 +52,9 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
   const [memberStats, setMemberStats] = useState<GroupGoalMemberStatus[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
+
+  const formatGroupGoalDate = (d?: string) =>
+    d ? new Date(`${d}T00:00:00`).toLocaleDateString() : "—";
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -152,6 +158,11 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
     } catch (err) {
       console.error("Error deleting group goal:", err);
     }
+    handleMenuClose();
+  };
+
+  const handleEdit = () => {
+    onEdit?.(groupGoal.id);
     handleMenuClose();
   };
 
@@ -295,23 +306,51 @@ export const GroupGoalItem: React.FC<GroupGoalItemProps> = ({
                   },
                 }}
               >
-                {groupGoal.description && (
-                  <MenuItem
-                    key="description"
-                    sx={{ color: "text.secondary", whiteSpace: "unset" }}
-                  >
-                    <InfoSharp sx={{ mr: 1, fontSize: 20 }} />
-                    <Typography variant="body2">
-                      {groupGoal.description}
-                    </Typography>
-                  </MenuItem>
+                {groupGoal.description ? (
+                  <>
+                    <MenuItem
+                      key="description"
+                      sx={{ color: "text.secondary", whiteSpace: "unset" }}
+                    >
+                      <InfoSharp sx={{ mr: 1, fontSize: 20 }} />
+                      <Box display="flex" flexDirection="column" gap={0.25}>
+                        <Typography variant="body2">
+                          {groupGoal.description}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Start: {formatGroupGoalDate(groupGoal.startDate)}
+                          {" · "}
+                          End: {formatGroupGoalDate(groupGoal.endDate)}
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                    <Divider key="desc-divider" />
+                  </>
+                ) : (
+                  <>
+                    <MenuItem
+                      key="dates"
+                      sx={{ color: "text.secondary", whiteSpace: "unset" }}
+                    >
+                      <InfoSharp sx={{ mr: 1, fontSize: 20 }} />
+                      <Typography variant="body2">
+                        Start: {formatGroupGoalDate(groupGoal.startDate)}
+                        {" · "}
+                        End: {formatGroupGoalDate(groupGoal.endDate)}
+                      </Typography>
+                    </MenuItem>
+                    <Divider key="dates-divider" />
+                  </>
                 )}
-                {groupGoal.description && <Divider key="desc-divider" />}
                 <MenuItem key="view-stats" onClick={handleViewStats}>
                   <InfoSharp sx={{ mr: 1, fontSize: 20 }} />
                   View Group Status
                 </MenuItem>
                 {groupGoal.role === "owner" && [
+                  <MenuItem key="edit" onClick={handleEdit}>
+                    <EditIcon sx={{ mr: 1, fontSize: 20 }} />
+                    Edit Group Goal
+                  </MenuItem>,
                   <MenuItem key="invite" onClick={handleShareInviteLink}>
                     <LinkIcon sx={{ mr: 1, fontSize: 20 }} />
                     {inviteLinkCopied ? "Link Copied!" : "Invite to Goal"}
