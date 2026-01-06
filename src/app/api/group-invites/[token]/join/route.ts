@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { getSupabaseAdminClient } from "../../../_utils/supabaseAdmin";
 
+export const runtime = "nodejs";
+
 async function getSupabaseRouteHandlerClient() {
   const cookieStore = await cookies();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

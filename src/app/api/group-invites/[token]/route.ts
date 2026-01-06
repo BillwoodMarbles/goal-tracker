@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdminClient } from "../../_utils/supabaseAdmin";
+import {
+  getSupabaseAdminClient,
+  SupabaseAdminConfigError,
+} from "../../_utils/supabaseAdmin";
+
+export const runtime = "nodejs";
 
 export async function GET(
   request: Request,
@@ -68,6 +73,20 @@ export async function GET(
     });
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    if (e instanceof SupabaseAdminConfigError) {
+      return NextResponse.json(
+        {
+          error:
+            "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY (set this env var in your hosting provider).",
+        },
+        { status: 500 }
+      );
+    }
+    const detail =
+      e instanceof Error ? `${e.name}: ${e.message}` : "Unknown error";
+    return NextResponse.json(
+      { error: "Server error", detail },
+      { status: 500 }
+    );
   }
 }
