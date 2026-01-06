@@ -65,10 +65,13 @@ export async function GET(
     }
 
     if (invite.revoked_at) {
-      return NextResponse.json({ error: "Invite has been revoked" }, { status: 410 });
+      return NextResponse.json(
+        { error: "Invite has been revoked" },
+        { status: 410 }
+      );
     }
 
-    const goal = invite.group_goals as {
+    const goal = invite.group_goals as unknown as {
       id: string;
       title: string;
       description: string | null;
@@ -110,4 +113,3 @@ export async function GET(
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-

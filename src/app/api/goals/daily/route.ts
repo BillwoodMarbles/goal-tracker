@@ -241,8 +241,8 @@ export async function GET(request: Request) {
       (membershipData || []).map((m) => [m.group_goal_id, m.role])
     );
 
-    let groupGoals: unknown[] = [];
-    let historicalGroupGoals: unknown[] = [];
+    const groupGoals: unknown[] = [];
+    const historicalGroupGoals: unknown[] = [];
 
     if (groupGoalIds.length > 0) {
       // Fetch group goals
