@@ -38,9 +38,15 @@ export async function POST(
     // Use service-role client for invite/member DB operations to bypass RLS
     // (invites are owner-only under RLS, but invite join must work for non-owners).
     const admin = getSupabaseAdminClient();
+    const authHeader = request.headers.get("authorization");
+    const jwt =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length)
+        : null;
+
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = jwt ? await supabase.auth.getUser(jwt) : await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

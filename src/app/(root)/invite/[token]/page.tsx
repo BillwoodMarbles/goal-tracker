@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Container,
@@ -32,13 +32,14 @@ type GroupGoalPreview = {
 
 export default function InvitePage({ params }: InvitePageProps) {
   const router = useRouter();
-  const { user, loading: authLoading } = useSupabaseAuth();
+  const { user, session, loading: authLoading } = useSupabaseAuth();
   const [token, setToken] = useState<string | null>(null);
   const [groupGoal, setGroupGoal] = useState<GroupGoalPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [joining, setJoining] = useState(false);
+  const joinAttemptedRef = useRef(false);
 
   // Unwrap params
   useEffect(() => {
@@ -80,15 +81,28 @@ export default function InvitePage({ params }: InvitePageProps) {
     loadInvite();
   }, [token]);
 
+  // Reset join attempt when auth/session changes or token changes
+  useEffect(() => {
+    joinAttemptedRef.current = false;
+  }, [token, user?.id, session?.access_token]);
+
   // Auto-join if authenticated
   useEffect(() => {
-    if (!user || !groupGoal || authLoading || joining) return;
+    if (!user || !groupGoal || authLoading || joining || error) return;
+    if (joinAttemptedRef.current) return;
 
     const autoJoin = async () => {
+      joinAttemptedRef.current = true;
       setJoining(true);
       try {
+        const headers: HeadersInit = {};
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        }
+
         const res = await fetch(`/api/group-invites/${token}/join`, {
           method: "POST",
+          headers,
         });
 
         if (res.ok) {
@@ -97,21 +111,27 @@ export default function InvitePage({ params }: InvitePageProps) {
             router.push("/");
           } else {
             setError("Failed to join group goal.");
-            setJoining(false);
           }
         } else {
-          setError("Failed to join group goal.");
-          setJoining(false);
+          if (res.status === 401) {
+            // Don't loop: prompt sign-in, and let session propagation settle.
+            setAuthModalOpen(true);
+            setError("Please sign in to join this group goal.");
+          } else {
+            const body = await res.json().catch(() => null);
+            setError(body?.error || "Failed to join group goal.");
+          }
         }
       } catch (err) {
         console.error("Error joining group:", err);
         setError("Failed to join group goal.");
+      } finally {
         setJoining(false);
       }
     };
 
     autoJoin();
-  }, [user, groupGoal, authLoading, token, router, joining]);
+  }, [user, groupGoal, authLoading, token, router, joining, error, session]);
 
   const handleJoinClick = () => {
     if (user) {

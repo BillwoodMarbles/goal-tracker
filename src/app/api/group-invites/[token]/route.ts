@@ -14,25 +14,10 @@ export async function GET(
     // Note: This endpoint should work without authentication
     // so users can preview before signing in
 
-    // Get the invite and associated goal
+    // Get the invite (public preview must work without auth; use admin client)
     const { data: invite, error: inviteError } = await supabase
       .from("group_goal_invites")
-      .select(
-        `
-        id,
-        group_goal_id,
-        revoked_at,
-        group_goals (
-          id,
-          title,
-          description,
-          start_date,
-          end_date,
-          days_of_week,
-          is_active
-        )
-      `
-      )
+      .select("id, group_goal_id, revoked_at")
       .eq("token", token)
       .single();
 
@@ -47,17 +32,16 @@ export async function GET(
       );
     }
 
-    const goal = invite.group_goals as unknown as {
-      id: string;
-      title: string;
-      description: string | null;
-      start_date: string;
-      end_date: string | null;
-      days_of_week: string[];
-      is_active: boolean;
-    } | null;
+    // Fetch the goal separately (avoids nested select typing issues)
+    const { data: goal, error: goalError } = await supabase
+      .from("group_goals")
+      .select(
+        "id, title, description, start_date, end_date, days_of_week, is_active"
+      )
+      .eq("id", invite.group_goal_id)
+      .single();
 
-    if (!goal || !goal.is_active) {
+    if (goalError || !goal || !goal.is_active) {
       return NextResponse.json(
         { error: "Group goal not found or inactive" },
         { status: 404 }
