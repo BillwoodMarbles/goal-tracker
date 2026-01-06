@@ -23,6 +23,7 @@ import {
   Goal,
   DailyGoals,
   GoalWithStatus,
+  GroupGoalWithStatus,
 } from "../goals/types";
 import { WeekNavigation } from "../goals/components/WeekNavigation";
 import { useWeekNavigation } from "../goals/hooks/useWeekNavigation";
@@ -88,6 +89,73 @@ type WeekResponseDTO = {
   weeklyGoals: Record<string, WeeklyGoalWithStatusDTO[]>;
 };
 
+type GroupGoalWithStatusDTO = {
+  id: string;
+  ownerId: string;
+  title: string;
+  description?: string;
+  createdAt: string;
+  isActive: boolean;
+  startDate: string;
+  endDate?: string;
+  daysOfWeek: string[];
+  totalSteps: number;
+  membersTotal: number;
+  membersCompleted: number;
+  selfCompleted: boolean;
+  allCompleted: boolean;
+  role: "owner" | "member";
+};
+
+type DailyWithGroupGoalsDTO = {
+  groupGoals?: GroupGoalWithStatusDTO[];
+};
+
+const DAY_SET = new Set([
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+]);
+
+function toDayOfWeekArray(days: string[]): DayOfWeek[] {
+  return (days || []).filter((d): d is DayOfWeek => DAY_SET.has(d));
+}
+
+interface GroupGoalWithDailyStatus
+  extends Omit<
+    GroupGoalWithStatus,
+    "membersTotal" | "membersCompleted" | "selfCompleted" | "allCompleted"
+  > {
+  dailyStatus: {
+    [date: string]: {
+      disabled?: boolean;
+      selfCompleted: boolean;
+      allCompleted: boolean;
+      membersCompleted: number;
+      membersTotal: number;
+    };
+  };
+}
+
+function isGroupGoalActiveOnDate(
+  gg: Pick<GroupGoalWithStatus, "startDate" | "endDate" | "daysOfWeek">,
+  date: string
+) {
+  const dateObj = dayjs(date);
+  const startOk =
+    dateObj.isAfter(gg.startDate, "day") || dateObj.isSame(gg.startDate, "day");
+  const endOk = gg.endDate
+    ? dateObj.isBefore(gg.endDate, "day") || dateObj.isSame(gg.endDate, "day")
+    : true;
+  const dayOfWeek = dayjs(date).format("dddd").toLowerCase() as DayOfWeek;
+  const dayOk = (gg.daysOfWeek || []).includes(dayOfWeek);
+  return startOk && endOk && dayOk;
+}
+
 const WeekView = React.memo(() => {
   const [goals, setGoals] = useState<GoalWithDailyStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +167,81 @@ const WeekView = React.memo(() => {
     weekDates: string[];
   } | null>(null);
 
+  const [groupGoals, setGroupGoals] = useState<GroupGoalWithDailyStatus[]>([]);
+
   const { selectedWeekStart, goToPrevWeek, goToNextWeek } = useWeekNavigation();
+
+  const loadGroupGoalsForWeek = useCallback(async (dates: string[]) => {
+    try {
+      const dailyDtos = await Promise.all(
+        dates.map(async (date) => {
+          const res = await fetch(`/api/goals/daily?date=${date}`);
+          if (!res.ok) return null;
+          return (await res.json()) as DailyWithGroupGoalsDTO;
+        })
+      );
+
+      const byId = new Map<string, GroupGoalWithDailyStatus>();
+
+      dates.forEach((date, idx) => {
+        const dto = dailyDtos[idx];
+        const groupGoalsForDate = dto?.groupGoals || [];
+
+        groupGoalsForDate.forEach((gg) => {
+          const existing = byId.get(gg.id);
+          const base =
+            existing ??
+            ({
+              id: gg.id,
+              ownerId: gg.ownerId,
+              title: gg.title,
+              description: gg.description,
+              createdAt: new Date(gg.createdAt),
+              isActive: gg.isActive,
+              startDate: gg.startDate,
+              endDate: gg.endDate,
+              daysOfWeek: toDayOfWeekArray(gg.daysOfWeek || []),
+              totalSteps: gg.totalSteps,
+              role: gg.role,
+              dailyStatus: {},
+            } as GroupGoalWithDailyStatus);
+
+          base.dailyStatus[date] = {
+            selfCompleted: !!gg.selfCompleted,
+            allCompleted: !!gg.allCompleted,
+            membersCompleted: gg.membersCompleted ?? 0,
+            membersTotal: gg.membersTotal ?? 0,
+          };
+
+          byId.set(gg.id, base);
+        });
+      });
+
+      // Fill missing dates and mark disabled when goal isn't active on that day
+      byId.forEach((gg) => {
+        dates.forEach((date) => {
+          if (gg.dailyStatus[date]) return;
+
+          const active = isGroupGoalActiveOnDate(gg, date);
+          gg.dailyStatus[date] = {
+            disabled: !active,
+            selfCompleted: false,
+            allCompleted: false,
+            membersCompleted: 0,
+            membersTotal: 0,
+          };
+        });
+      });
+
+      const next = Array.from(byId.values()).sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+      );
+      setGroupGoals(next);
+    } catch (err) {
+      console.error("Error loading group goals for week:", err);
+      setGroupGoals([]);
+    }
+  }, []);
 
   const loadWeekData = useCallback(async () => {
     setLoading(true);
@@ -109,6 +251,8 @@ const WeekView = React.memo(() => {
       return;
     }
     const dto = (await res.json()) as WeekResponseDTO;
+
+    void loadGroupGoalsForWeek(dto.weekDates || []);
 
     const weekData = {
       weekDates: dto.weekDates,
@@ -223,12 +367,11 @@ const WeekView = React.memo(() => {
 
     setGoals(goalsWithDailyStatus);
     setLoading(false);
-  }, [selectedWeekStart]);
+  }, [loadGroupGoalsForWeek, selectedWeekStart]);
 
   useEffect(() => {
     loadWeekData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWeekStart]);
+  }, [loadWeekData]);
 
   // Listen for goal updates from the header
   useEffect(() => {
@@ -298,6 +441,16 @@ const WeekView = React.memo(() => {
 
       const isPastDate = dayjs(date).isBefore(dayjs(), "day");
       return isPastDate && !status.completed && status.completedSteps === 0;
+    },
+    []
+  );
+
+  const getGroupGoalProgressColor = useCallback(
+    (status: GroupGoalWithDailyStatus["dailyStatus"][string] | undefined) => {
+      if (!status || status.disabled) return "grey.400";
+      if (status.allCompleted) return "#FFD700";
+      if (status.selfCompleted) return "success.main";
+      return "primary.main";
     },
     []
   );
@@ -391,48 +544,215 @@ const WeekView = React.memo(() => {
           No goals found. Create some goals to see them here.
         </Alert>
       ) : (
-        <TableContainer
-          component={Paper}
-          sx={{ borderRadius: 0, boxShadow: "none", my: 2 }}
-        >
-          <Table sx={{ tableLayout: "fixed" }}>
-            <TableHead>
-              <TableRow>
-                <TableCell
-                  sx={{
-                    fontWeight: "bold",
-                    width: "30%",
-                    p: 1,
-                    border: "1px solid #e0e0e0",
-                  }}
-                >
-                  Goals
-                </TableCell>
-                {weekDates.map((date, index) => (
+        <>
+          <TableContainer
+            component={Paper}
+            sx={{ borderRadius: 0, boxShadow: "none", my: 2 }}
+          >
+            <Table sx={{ tableLayout: "fixed" }}>
+              <TableHead>
+                <TableRow>
                   <TableCell
-                    key={index}
-                    align="center"
                     sx={{
-                      width: "10%",
-                      p: 0.5,
-                      height: 50,
+                      fontWeight: "bold",
+                      width: "30%",
+                      p: 1,
                       border: "1px solid #e0e0e0",
                     }}
                   >
-                    <Typography variant="caption" sx={{ fontWeight: "bold" }}>
-                      {DAYS_OF_WEEK[index].charAt(0).toUpperCase()}
-                    </Typography>
+                    Goals
                   </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {/* Daily Goals First */}
-              {goals
-                .filter((goal) => goal.goalType === GoalType.DAILY)
-                .map((goal) => (
-                  <React.Fragment key={goal.id}>
-                    <TableRow>
+                  {weekDates.map((date, index) => (
+                    <TableCell
+                      key={index}
+                      align="center"
+                      sx={{
+                        width: "10%",
+                        p: 0.5,
+                        height: 50,
+                        border: "1px solid #e0e0e0",
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ fontWeight: "bold" }}>
+                        {DAYS_OF_WEEK[index].charAt(0).toUpperCase()}
+                      </Typography>
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {/* Daily Goals First */}
+                {goals
+                  .filter((goal) => goal.goalType === GoalType.DAILY)
+                  .map((goal) => (
+                    <React.Fragment key={goal.id}>
+                      <TableRow>
+                        <TableCell
+                          sx={{
+                            p: 1,
+                            border: "1px solid #e0e0e0",
+                            width: "30%",
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 500,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: "100%",
+                            }}
+                          >
+                            {goal.title}
+                          </Typography>
+                        </TableCell>
+                        {weekDates.map((date, index) => (
+                          <TableCell key={index} align="center" sx={{ p: 0 }}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                minHeight: 50,
+                                backgroundColor: goal.dailyStatus[date]
+                                  ?.disabled
+                                  ? "grey.100"
+                                  : "transparent",
+                              }}
+                            >
+                              {goal.dailyStatus[date]?.disabled ? (
+                                <Box
+                                  sx={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: "50%",
+                                    backgroundColor: "grey.300",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    margin: "auto",
+                                  }}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    —
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                <Box
+                                  position="relative"
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: "100%",
+                                    height: "100%",
+                                  }}
+                                >
+                                  {goal.dailyStatus[date]?.completed && (
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: "50%",
+                                        backgroundColor:
+                                          "rgba(76, 175, 80, 0.2)",
+                                      }}
+                                    />
+                                  )}
+                                  {goal.dailyStatus[date]?.snoozed && (
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: "50%",
+                                        backgroundColor:
+                                          "rgba(158, 158, 158, 0.2)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                      }}
+                                    >
+                                      <SnoozeIcon
+                                        sx={{
+                                          fontSize: 20,
+                                          color: "grey.500",
+                                        }}
+                                      />
+                                    </Box>
+                                  )}
+                                  {!goal.dailyStatus[date]?.completed &&
+                                    !goal.dailyStatus[date]?.snoozed &&
+                                    goal.isMultiStep &&
+                                    goal.totalSteps > 1 &&
+                                    goal.dailyStatus[date]?.completedSteps >
+                                      0 && (
+                                      <Box
+                                        sx={{
+                                          position: "absolute",
+                                          width: 32,
+                                          height: 32,
+                                          borderRadius: "50%",
+                                          backgroundColor:
+                                            "rgba(33, 150, 243, 0.2)",
+                                        }}
+                                      />
+                                    )}
+                                  <CircularProgress
+                                    variant="determinate"
+                                    value={getProgressValue(goal, date)}
+                                    size={32}
+                                    sx={{
+                                      color: getProgressColor(goal, date),
+                                    }}
+                                  />
+                                  {goal.isMultiStep && goal.totalSteps > 1 && (
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        position: "absolute",
+                                        top: "50%",
+                                        left: "50%",
+                                        transform: "translate(-50%, -50%)",
+                                        fontSize: "0.6rem",
+                                        fontWeight: "bold",
+                                      }}
+                                    >
+                                      {goal.dailyStatus[date]?.completedSteps ||
+                                        null}
+                                    </Typography>
+                                  )}
+                                  {isGoalFailed(goal, date) && (
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: "50%",
+                                        backgroundColor:
+                                          "rgba(244, 67, 54, 0.2)",
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                              )}
+                            </Box>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </React.Fragment>
+                  ))}
+
+                {/* Weekly Goals Second */}
+                {goals
+                  .filter((goal) => goal.goalType === GoalType.WEEKLY)
+                  .map((goal) => (
+                    <TableRow key={goal.id}>
                       <TableCell
                         sx={{
                           p: 1,
@@ -453,7 +773,191 @@ const WeekView = React.memo(() => {
                           {goal.title}
                         </Typography>
                       </TableCell>
-                      {weekDates.map((date, index) => (
+                      <TableCell
+                        colSpan={7}
+                        sx={{ p: 0, position: "relative" }}
+                      >
+                        <Box
+                          sx={{
+                            p: 1,
+                            position: "relative",
+                            minHeight: 50,
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <LinearProgress
+                            variant="determinate"
+                            value={getWeeklyGoalProgress(goal)}
+                            sx={{
+                              height: 4,
+                              borderRadius: 3,
+                              backgroundColor: "grey.200",
+                              width: "100%",
+                              zIndex: 1,
+                              "& .MuiLinearProgress-bar": {
+                                backgroundColor: "success.main",
+                              },
+                            }}
+                          />
+                          {/* Daily status circles positioned absolutely on top */}
+                          <Box
+                            sx={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              px: 0.5,
+                              zIndex: 2,
+                            }}
+                          >
+                            {weekDates.map((date, index) => (
+                              <Box
+                                key={index}
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  width: 32,
+                                  height: 32,
+                                }}
+                              >
+                                {goal.dailyStatus[date]?.disabled ? (
+                                  <Box
+                                    sx={{
+                                      width: 24,
+                                      height: 24,
+                                      borderRadius: "50%",
+                                      backgroundColor: "grey.300",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ fontSize: "0.6rem" }}
+                                    >
+                                      —
+                                    </Typography>
+                                  </Box>
+                                ) : (
+                                  <Box
+                                    position="relative"
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      width: "100%",
+                                      height: "100%",
+                                    }}
+                                  >
+                                    {goal.dailyStatus[date]?.completed && (
+                                      <Box
+                                        sx={{
+                                          position: "absolute",
+                                          width: 24,
+                                          height: 24,
+                                          borderRadius: "50%",
+                                          backgroundColor:
+                                            "rgba(76, 175, 80, 0.2)",
+                                        }}
+                                      />
+                                    )}
+                                    {goal.dailyStatus[date]?.snoozed && (
+                                      <Box
+                                        sx={{
+                                          position: "absolute",
+                                          width: 24,
+                                          height: 24,
+                                          borderRadius: "50%",
+                                          backgroundColor:
+                                            "rgba(158, 158, 158, 0.2)",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                        }}
+                                      >
+                                        <SnoozeIcon
+                                          sx={{
+                                            fontSize: 16,
+                                            color: "grey.500",
+                                          }}
+                                        />
+                                      </Box>
+                                    )}
+                                    <CircularProgress
+                                      variant="determinate"
+                                      value={getProgressValue(goal, date)}
+                                      size={24}
+                                      sx={{
+                                        color: getProgressColor(goal, date),
+                                      }}
+                                    />
+                                  </Box>
+                                )}
+                              </Box>
+                            ))}
+                          </Box>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                {/* Group Goals (grid) */}
+                {groupGoals.length > 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      sx={{ p: 1, border: "1px solid #e0e0e0" }}
+                    >
+                      <Typography variant="subtitle2" color="text.secondary">
+                        Group Goals
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {groupGoals.map((gg) => (
+                  <TableRow key={`group-${gg.id}`}>
+                    <TableCell
+                      sx={{
+                        p: 1,
+                        border: "1px solid #e0e0e0",
+                        width: "30%",
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 500,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: "100%",
+                        }}
+                      >
+                        {gg.title}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                      >
+                        {gg.role === "owner" ? "Owner" : "Member"}
+                      </Typography>
+                    </TableCell>
+                    {weekDates.map((date, index) => {
+                      const status = gg.dailyStatus[date];
+                      const disabled = !!status?.disabled;
+                      const value = status?.selfCompleted ? 100 : 0;
+                      const color = getGroupGoalProgressColor(status);
+
+                      return (
                         <TableCell key={index} align="center" sx={{ p: 0 }}>
                           <Box
                             sx={{
@@ -461,12 +965,12 @@ const WeekView = React.memo(() => {
                               justifyContent: "center",
                               alignItems: "center",
                               minHeight: 50,
-                              backgroundColor: goal.dailyStatus[date]?.disabled
+                              backgroundColor: disabled
                                 ? "grey.100"
                                 : "transparent",
                             }}
                           >
-                            {goal.dailyStatus[date]?.disabled ? (
+                            {disabled ? (
                               <Box
                                 sx={{
                                   width: 32,
@@ -497,65 +1001,26 @@ const WeekView = React.memo(() => {
                                   height: "100%",
                                 }}
                               >
-                                {goal.dailyStatus[date]?.completed && (
+                                {status?.selfCompleted && (
                                   <Box
                                     sx={{
                                       position: "absolute",
                                       width: 32,
                                       height: 32,
                                       borderRadius: "50%",
-                                      backgroundColor: "rgba(76, 175, 80, 0.2)",
+                                      backgroundColor: status.allCompleted
+                                        ? "rgba(255, 215, 0, 0.18)"
+                                        : "rgba(76, 175, 80, 0.18)",
                                     }}
                                   />
                                 )}
-                                {goal.dailyStatus[date]?.snoozed && (
-                                  <Box
-                                    sx={{
-                                      position: "absolute",
-                                      width: 32,
-                                      height: 32,
-                                      borderRadius: "50%",
-                                      backgroundColor:
-                                        "rgba(158, 158, 158, 0.2)",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                    }}
-                                  >
-                                    <SnoozeIcon
-                                      sx={{
-                                        fontSize: 20,
-                                        color: "grey.500",
-                                      }}
-                                    />
-                                  </Box>
-                                )}
-                                {!goal.dailyStatus[date]?.completed &&
-                                  !goal.dailyStatus[date]?.snoozed &&
-                                  goal.isMultiStep &&
-                                  goal.totalSteps > 1 &&
-                                  goal.dailyStatus[date]?.completedSteps >
-                                    0 && (
-                                    <Box
-                                      sx={{
-                                        position: "absolute",
-                                        width: 32,
-                                        height: 32,
-                                        borderRadius: "50%",
-                                        backgroundColor:
-                                          "rgba(33, 150, 243, 0.2)",
-                                      }}
-                                    />
-                                  )}
                                 <CircularProgress
                                   variant="determinate"
-                                  value={getProgressValue(goal, date)}
+                                  value={value}
                                   size={32}
-                                  sx={{
-                                    color: getProgressColor(goal, date),
-                                  }}
+                                  sx={{ color }}
                                 />
-                                {goal.isMultiStep && goal.totalSteps > 1 && (
+                                {status && (
                                   <Typography
                                     variant="caption"
                                     sx={{
@@ -563,194 +1028,27 @@ const WeekView = React.memo(() => {
                                       top: "50%",
                                       left: "50%",
                                       transform: "translate(-50%, -50%)",
-                                      fontSize: "0.6rem",
-                                      fontWeight: "bold",
+                                      fontSize: "0.55rem",
+                                      fontWeight: 700,
+                                      color: "text.secondary",
                                     }}
                                   >
-                                    {goal.dailyStatus[date]?.completedSteps ||
-                                      null}
+                                    {status.membersCompleted}/
+                                    {status.membersTotal}
                                   </Typography>
-                                )}
-                                {isGoalFailed(goal, date) && (
-                                  <Box
-                                    sx={{
-                                      position: "absolute",
-                                      width: 32,
-                                      height: 32,
-                                      borderRadius: "50%",
-                                      backgroundColor: "rgba(244, 67, 54, 0.2)",
-                                    }}
-                                  />
                                 )}
                               </Box>
                             )}
                           </Box>
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  </React.Fragment>
-                ))}
-
-              {/* Weekly Goals Second */}
-              {goals
-                .filter((goal) => goal.goalType === GoalType.WEEKLY)
-                .map((goal) => (
-                  <TableRow key={goal.id}>
-                    <TableCell
-                      sx={{
-                        p: 1,
-                        border: "1px solid #e0e0e0",
-                        width: "30%",
-                      }}
-                    >
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 500,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          maxWidth: "100%",
-                        }}
-                      >
-                        {goal.title}
-                      </Typography>
-                    </TableCell>
-                    <TableCell colSpan={7} sx={{ p: 0, position: "relative" }}>
-                      <Box
-                        sx={{
-                          p: 1,
-                          position: "relative",
-                          minHeight: 50,
-                          display: "flex",
-                          alignItems: "center",
-                        }}
-                      >
-                        <LinearProgress
-                          variant="determinate"
-                          value={getWeeklyGoalProgress(goal)}
-                          sx={{
-                            height: 4,
-                            borderRadius: 3,
-                            backgroundColor: "grey.200",
-                            width: "100%",
-                            zIndex: 1,
-                            "& .MuiLinearProgress-bar": {
-                              backgroundColor: "success.main",
-                            },
-                          }}
-                        />
-                        {/* Daily status circles positioned absolutely on top */}
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            px: 0.5,
-                            zIndex: 2,
-                          }}
-                        >
-                          {weekDates.map((date, index) => (
-                            <Box
-                              key={index}
-                              sx={{
-                                display: "flex",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                width: 32,
-                                height: 32,
-                              }}
-                            >
-                              {goal.dailyStatus[date]?.disabled ? (
-                                <Box
-                                  sx={{
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: "50%",
-                                    backgroundColor: "grey.300",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                  }}
-                                >
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{ fontSize: "0.6rem" }}
-                                  >
-                                    —
-                                  </Typography>
-                                </Box>
-                              ) : (
-                                <Box
-                                  position="relative"
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    width: "100%",
-                                    height: "100%",
-                                  }}
-                                >
-                                  {goal.dailyStatus[date]?.completed && (
-                                    <Box
-                                      sx={{
-                                        position: "absolute",
-                                        width: 24,
-                                        height: 24,
-                                        borderRadius: "50%",
-                                        backgroundColor:
-                                          "rgba(76, 175, 80, 0.2)",
-                                      }}
-                                    />
-                                  )}
-                                  {goal.dailyStatus[date]?.snoozed && (
-                                    <Box
-                                      sx={{
-                                        position: "absolute",
-                                        width: 24,
-                                        height: 24,
-                                        borderRadius: "50%",
-                                        backgroundColor:
-                                          "rgba(158, 158, 158, 0.2)",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                      }}
-                                    >
-                                      <SnoozeIcon
-                                        sx={{
-                                          fontSize: 16,
-                                          color: "grey.500",
-                                        }}
-                                      />
-                                    </Box>
-                                  )}
-                                  <CircularProgress
-                                    variant="determinate"
-                                    value={getProgressValue(goal, date)}
-                                    size={24}
-                                    sx={{
-                                      color: getProgressColor(goal, date),
-                                    }}
-                                  />
-                                </Box>
-                              )}
-                            </Box>
-                          ))}
-                        </Box>
-                      </Box>
-                    </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
       )}
     </Box>
   );

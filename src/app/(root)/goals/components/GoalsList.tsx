@@ -112,67 +112,6 @@ export const GoalsList: React.FC<GoalsListProps> = ({
 
   return (
     <Box>
-      {/* Group Goals */}
-      {groupGoals.length > 0 && (
-        <Box mb={3}>
-          <Box
-            display="flex"
-            alignItems="center"
-            justifyContent="space-between"
-            gap={1}
-            mb={1}
-          >
-            <Typography variant="h6">Group Goals</Typography>
-          </Box>
-          {groupGoals.map((groupGoal) => (
-            <GroupGoalItem
-              key={groupGoal.id}
-              groupGoal={groupGoal}
-              onToggle={onToggleGroupGoal || (() => {})}
-              onEdit={onEditGroupGoal}
-              onRefresh={onRefreshGoals}
-              selectedDate={selectedDate}
-            />
-          ))}
-        </Box>
-      )}
-
-      {/* Historical Group Goals */}
-      {historicalGroupGoals.length > 0 && (
-        <Box mb={3}>
-          <Button
-            onClick={() => setShowHistoricalGroups(!showHistoricalGroups)}
-            endIcon={
-              <ExpandMoreIcon
-                sx={{
-                  transform: showHistoricalGroups
-                    ? "rotate(180deg)"
-                    : "rotate(0deg)",
-                  transition: "transform 0.3s",
-                }}
-              />
-            }
-            sx={{ mb: 1 }}
-          >
-            Historical Group Goals ({historicalGroupGoals.length})
-          </Button>
-          <Collapse in={showHistoricalGroups}>
-            <Box>
-              {historicalGroupGoals.map((groupGoal) => (
-                <GroupGoalItem
-                  key={groupGoal.id}
-                  groupGoal={groupGoal}
-                  onToggle={onToggleGroupGoal || (() => {})}
-                  onEdit={onEditGroupGoal}
-                  onRefresh={onRefreshGoals}
-                  selectedDate={selectedDate}
-                />
-              ))}
-            </Box>
-          </Collapse>
-        </Box>
-      )}
-
       {/* Daily Goals */}
       {goals.length > 0 && (
         <Box mb={3}>
@@ -257,6 +196,42 @@ export const GoalsList: React.FC<GoalsListProps> = ({
               isReadOnly={isReadOnly}
             />
           ))}
+        </Box>
+      )}
+
+      {/* Historical Group Goals */}
+      {historicalGroupGoals.length > 0 && (
+        <Box mb={3}>
+          <Button
+            onClick={() => setShowHistoricalGroups(!showHistoricalGroups)}
+            endIcon={
+              <ExpandMoreIcon
+                sx={{
+                  transform: showHistoricalGroups
+                    ? "rotate(180deg)"
+                    : "rotate(0deg)",
+                  transition: "transform 0.3s",
+                }}
+              />
+            }
+            sx={{ mb: 1 }}
+          >
+            Historical Group Goals ({historicalGroupGoals.length})
+          </Button>
+          <Collapse in={showHistoricalGroups}>
+            <Box>
+              {historicalGroupGoals.map((groupGoal) => (
+                <GroupGoalItem
+                  key={groupGoal.id}
+                  groupGoal={groupGoal}
+                  onToggle={onToggleGroupGoal || (() => {})}
+                  onEdit={onEditGroupGoal}
+                  onRefresh={onRefreshGoals}
+                  selectedDate={selectedDate}
+                />
+              ))}
+            </Box>
+          </Collapse>
         </Box>
       )}
 
