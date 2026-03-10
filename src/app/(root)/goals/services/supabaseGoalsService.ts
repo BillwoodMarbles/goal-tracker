@@ -503,6 +503,50 @@ export class SupabaseGoalsService {
     return true;
   }
 
+  async setDailyGoalStatus(
+    goalId: string,
+    date: string,
+    status: {
+      completed: boolean;
+      completedAt?: Date;
+      completedSteps: number;
+      stepCompletions: (Date | undefined)[];
+    }
+  ): Promise<void> {
+    const userId = await this.requireUserId();
+    const stepCompletions = status.stepCompletions.map((s) =>
+      s ? s.toISOString() : null
+    );
+
+    const { data: existing } = await this.supabase
+      .from("daily_goal_status")
+      .select("id")
+      .eq("goal_id", goalId)
+      .eq("date", date)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const record = {
+      user_id: userId,
+      goal_id: goalId,
+      date,
+      completed: status.completed,
+      completed_at: status.completedAt?.toISOString() ?? null,
+      completed_steps: status.completedSteps,
+      step_completions: stepCompletions,
+      last_updated: new Date().toISOString(),
+    };
+
+    if (existing) {
+      await this.supabase
+        .from("daily_goal_status")
+        .update(record)
+        .eq("id", existing.id);
+    } else {
+      await this.supabase.from("daily_goal_status").insert(record);
+    }
+  }
+
   async getGoalsWithStatus(
     date: string = getTodayString()
   ): Promise<GoalWithStatus[]> {
