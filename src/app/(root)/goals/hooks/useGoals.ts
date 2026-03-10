@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Goal,
   GoalWithStatus,
@@ -122,16 +122,19 @@ export const useGoals = (selectedDate?: string) => {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [completionStats, setCompletionStats] = useState<CompletionStats>({
-    total: 0,
-    completed: 0,
-    percentage: 0,
-  });
   const [syncError, setSyncError] = useState<{
     message: string;
     retry: () => void;
   } | null>(null);
   const clearSyncError = useCallback(() => setSyncError(null), []);
+
+  // Derived immediately from local state so the progress bar updates on every optimistic change.
+  const completionStats = useMemo<CompletionStats>(() => {
+    const active = goals.filter((g) => !g.snoozed);
+    const completed = active.filter((g) => g.completed).length;
+    const total = active.length;
+    return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 };
+  }, [goals]);
 
   const currentDate = selectedDate || getTodayString();
   const { user } = useSupabaseAuth();
@@ -250,9 +253,6 @@ export const useGoals = (selectedDate?: string) => {
           return [...merged, ...added];
         });
         setHistoricalGroupGoals(nextHistoricalGroupGoals);
-        setCompletionStats(
-          dto.completionStats || { total: 0, completed: 0, percentage: 0 },
-        );
         setError(null);
       } catch (err) {
         if (mountedRef.current) {
