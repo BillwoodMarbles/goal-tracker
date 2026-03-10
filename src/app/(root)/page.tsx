@@ -609,8 +609,16 @@ const Goals = () => {
           autoHideDuration={5000}
           onClose={clearSyncError}
         >
-          <Alert severity="error" onClose={clearSyncError}>
-            {syncError}
+          <Alert
+            severity="error"
+            onClose={clearSyncError}
+            action={
+              <Button color="inherit" size="small" onClick={syncError?.retry}>
+                Retry
+              </Button>
+            }
+          >
+            {syncError?.message}
           </Alert>
         </Snackbar>
       </Container>

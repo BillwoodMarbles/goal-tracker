@@ -128,7 +128,7 @@ export const useGoals = (selectedDate?: string) => {
     completed: 0,
     percentage: 0,
   });
-  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<{ message: string; retry: () => void } | null>(null);
   const clearSyncError = useCallback(() => setSyncError(null), []);
 
   const currentDate = selectedDate || getTodayString();
@@ -268,6 +268,13 @@ export const useGoals = (selectedDate?: string) => {
     };
   }, [loadGoals]);
 
+  const scheduleFlush = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      void flushQueueRef.current();
+    }, 300);
+  }, []);
+
   const flushQueue = useCallback(async () => {
     if (isFlushing.current || pendingQueue.current.length === 0) return;
     isFlushing.current = true;
@@ -330,7 +337,16 @@ export const useGoals = (selectedDate?: string) => {
               prev.map((g) => (g.id === mutation.goalId ? mutation.previousState : g))
             );
           }
-          setSyncError(`Couldn't save "${mutation.previousState.title}" — tap to retry`);
+          const failedMutation = mutation;
+          setSyncError({
+            message: `Couldn't save "${mutation.previousState.title}"`,
+            retry: () => {
+              pendingGoalIds.current.add(failedMutation.goalId);
+              pendingQueue.current.push(failedMutation);
+              scheduleFlush();
+              setSyncError(null);
+            },
+          });
         }
       } finally {
         pendingGoalIds.current.delete(mutation.goalId);
@@ -346,14 +362,7 @@ export const useGoals = (selectedDate?: string) => {
     } else {
       await loadGoals({ showLoader: false });
     }
-  }, [loadGoals]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const scheduleFlush = useCallback(() => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      void flushQueueRef.current();
-    }, 300);
-  }, []);
+  }, [loadGoals, scheduleFlush]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     flushQueueRef.current = flushQueue;
