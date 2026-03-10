@@ -561,6 +561,73 @@ export class SupabaseGoalsService {
     }
   }
 
+  async setWeeklyGoalStatus(
+    goalId: string,
+    date: string,
+    status: {
+      completed: boolean;
+      completedAt?: Date;
+      completedSteps: number;
+      stepCompletions: (Date | undefined)[];
+      dailyIncremented?: boolean;
+    }
+  ): Promise<void> {
+    const userId = await this.requireUserId();
+    const weekStart = this.getWeekStart(date);
+    const stepCompletions = status.stepCompletions.map((s) =>
+      s ? s.toISOString() : null
+    );
+
+    const { data: existing } = await this.supabase
+      .from("weekly_goal_status")
+      .select("id, daily_increments")
+      .eq("goal_id", goalId)
+      .eq("week_start", weekStart)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    // Preserve other days' increments; only update today's flag.
+    const dailyIncrements: Record<string, boolean> = {
+      ...(existing?.daily_increments ?? {}),
+      [date]: status.dailyIncremented ?? false,
+    };
+
+    const updatePayload = {
+      completed: status.completed,
+      completed_at: status.completedAt?.toISOString() ?? null,
+      completed_steps: status.completedSteps,
+      step_completions: stepCompletions,
+      daily_increments: dailyIncrements,
+      last_updated: new Date().toISOString(),
+    };
+
+    const insertRecord = {
+      ...updatePayload,
+      user_id: userId,
+      goal_id: goalId,
+      week_start: weekStart,
+    };
+
+    if (existing) {
+      const { error } = await this.supabase
+        .from("weekly_goal_status")
+        .update(updatePayload)
+        .eq("id", existing.id);
+      if (error) {
+        console.error("Error updating weekly goal status:", error);
+        throw error;
+      }
+    } else {
+      const { error } = await this.supabase
+        .from("weekly_goal_status")
+        .insert(insertRecord);
+      if (error) {
+        console.error("Error inserting weekly goal status:", error);
+        throw error;
+      }
+    }
+  }
+
   async getGoalsWithStatus(
     date: string = getTodayString()
   ): Promise<GoalWithStatus[]> {
