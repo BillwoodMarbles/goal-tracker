@@ -361,7 +361,12 @@ export const useGoals = (selectedDate?: string) => {
           });
         }
       } finally {
-        pendingGoalIds.current.delete(dirty.goalId);
+        // Only remove from the pending set if no new dirty entry was added during the flush.
+        // If the user clicked again while the server call was in flight, a new dirty entry
+        // exists and we must keep the goal protected until that entry is also flushed.
+        if (!dirtyGoals.current.has(dirty.goalId)) {
+          pendingGoalIds.current.delete(dirty.goalId);
+        }
       }
     }
 
