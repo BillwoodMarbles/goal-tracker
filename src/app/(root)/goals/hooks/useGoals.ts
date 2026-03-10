@@ -216,9 +216,11 @@ export const useGoals = (selectedDate?: string) => {
           if (pendingGoalIds.current.size === 0) return next;
           const serverMap = new Map(next.map((g) => [g.id, g]));
           const prevIds = new Set(prev.map((g) => g.id));
-          const merged = prev.map((g) =>
-            pendingGoalIds.current.has(g.id) ? g : (serverMap.get(g.id) ?? g)
-          );
+          const merged = prev.flatMap((g) => {
+            if (pendingGoalIds.current.has(g.id)) return [g];
+            const serverVersion = serverMap.get(g.id);
+            return serverVersion ? [serverVersion] : [];
+          });
           const added = next.filter(
             (g) => !prevIds.has(g.id) && !pendingGoalIds.current.has(g.id)
           );
@@ -231,9 +233,16 @@ export const useGoals = (selectedDate?: string) => {
         setGroupGoals((prev) => {
           if (pendingGoalIds.current.size === 0) return nextGroupGoals;
           const serverMap = new Map(nextGroupGoals.map((g) => [g.id, g]));
-          return prev.map((g) =>
-            pendingGoalIds.current.has(g.id) ? g : (serverMap.get(g.id) ?? g)
+          const prevIds = new Set(prev.map((g) => g.id));
+          const merged = prev.flatMap((g) => {
+            if (pendingGoalIds.current.has(g.id)) return [g];
+            const serverVersion = serverMap.get(g.id);
+            return serverVersion ? [serverVersion] : [];
+          });
+          const added = nextGroupGoals.filter(
+            (g) => !prevIds.has(g.id) && !pendingGoalIds.current.has(g.id)
           );
+          return [...merged, ...added];
         });
         setHistoricalGroupGoals(nextHistoricalGroupGoals);
         setCompletionStats(
@@ -265,6 +274,10 @@ export const useGoals = (selectedDate?: string) => {
 
     return () => {
       mountedRef.current = false;
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+        debounceTimer.current = null;
+      }
     };
   }, [loadGoals]);
 
@@ -282,9 +295,24 @@ export const useGoals = (selectedDate?: string) => {
     const batch = [...pendingQueue.current];
     pendingQueue.current = [];
 
+    // Collapse multiple mutations for the same goalId: keep first previousState, last mutation entry.
+    const deduped: QueuedMutation[] = [];
+    const seenGoalIds = new Map<string, number>(); // goalId -> index in deduped
+    for (const mutation of batch) {
+      const existingIndex = seenGoalIds.get(mutation.goalId);
+      if (existingIndex !== undefined) {
+        // Keep the first previousState (true original state) but use this mutation's type/args
+        const original = deduped[existingIndex];
+        deduped[existingIndex] = { ...mutation, previousState: original.previousState } as QueuedMutation;
+      } else {
+        seenGoalIds.set(mutation.goalId, deduped.length);
+        deduped.push(mutation);
+      }
+    }
+
     const storageService = SupabaseGoalsService.getInstance();
 
-    for (const mutation of batch) {
+    for (const mutation of deduped) {
       const execute = async () => {
         switch (mutation.type) {
           case "toggleGoal":
@@ -325,6 +353,10 @@ export const useGoals = (selectedDate?: string) => {
       } catch {
         try {
           await new Promise((r) => setTimeout(r, 1000));
+          if (!mountedRef.current) {
+            pendingGoalIds.current.delete(mutation.goalId);
+            continue;
+          }
           await execute();
         } catch {
           if (!mountedRef.current) continue;

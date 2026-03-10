@@ -606,7 +606,6 @@ const Goals = () => {
 
         <Snackbar
           open={Boolean(syncError)}
-          autoHideDuration={5000}
           onClose={clearSyncError}
         >
           <Alert
