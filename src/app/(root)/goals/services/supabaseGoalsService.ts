@@ -526,10 +526,7 @@ export class SupabaseGoalsService {
       .eq("user_id", userId)
       .maybeSingle();
 
-    const record = {
-      user_id: userId,
-      goal_id: goalId,
-      date,
+    const updatePayload = {
       completed: status.completed,
       completed_at: status.completedAt?.toISOString() ?? null,
       completed_steps: status.completedSteps,
@@ -537,13 +534,30 @@ export class SupabaseGoalsService {
       last_updated: new Date().toISOString(),
     };
 
+    const insertRecord = {
+      user_id: userId,
+      goal_id: goalId,
+      date,
+      ...updatePayload,
+    };
+
     if (existing) {
-      await this.supabase
+      const { error } = await this.supabase
         .from("daily_goal_status")
-        .update(record)
+        .update(updatePayload)
         .eq("id", existing.id);
+      if (error) {
+        console.error("Error updating daily goal status:", error);
+        throw error;
+      }
     } else {
-      await this.supabase.from("daily_goal_status").insert(record);
+      const { error } = await this.supabase
+        .from("daily_goal_status")
+        .insert(insertRecord);
+      if (error) {
+        console.error("Error inserting daily goal status:", error);
+        throw error;
+      }
     }
   }
 
