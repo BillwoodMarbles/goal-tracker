@@ -43,7 +43,7 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { date } = body;
+    const { date, completed } = body;
 
     if (!date) {
       return NextResponse.json(
@@ -77,7 +77,8 @@ export async function POST(
       .eq("date", date)
       .single();
 
-    const newCompleted = !existingStatus?.completed;
+    const newCompleted =
+      typeof completed === "boolean" ? completed : !existingStatus?.completed;
 
     if (existingStatus) {
       // Update existing
