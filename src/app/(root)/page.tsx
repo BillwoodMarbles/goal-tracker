@@ -41,6 +41,8 @@ const Goals = () => {
     historicalGroupGoals,
     loading,
     error,
+    syncError,
+    clearSyncError,
     toggleGoal,
     toggleGoalStep,
     incrementGoalStep,
@@ -599,6 +601,16 @@ const Goals = () => {
             onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
           >
             {snackbar.message}
+          </Alert>
+        </Snackbar>
+
+        <Snackbar
+          open={Boolean(syncError)}
+          autoHideDuration={5000}
+          onClose={clearSyncError}
+        >
+          <Alert severity="error" onClose={clearSyncError}>
+            {syncError}
           </Alert>
         </Snackbar>
       </Container>

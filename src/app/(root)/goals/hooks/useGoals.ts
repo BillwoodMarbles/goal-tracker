@@ -72,6 +72,12 @@ type DailyResponseDTO = {
   historicalGroupGoals?: GroupGoalWithStatusDTO[];
 };
 
+type QueuedMutation =
+  | { goalId: string; type: "toggleGoal"; isWeekly: boolean; date: string; previousState: GoalWithStatus }
+  | { goalId: string; type: "toggleGoalStep"; isWeekly: boolean; date: string; stepIndex: number; previousState: GoalWithStatus }
+  | { goalId: string; type: "incrementGoalStep"; isWeekly: boolean; date: string; previousState: GoalWithStatus }
+  | { goalId: string; type: "toggleGroupGoal"; date: string; previousState: GroupGoalWithStatus };
+
 /**
  * React StrictMode (dev) mounts/unmounts components twice to detect side effects.
  * If we abort fetches during cleanup, DevTools will show a "cancelled" request.
@@ -122,6 +128,8 @@ export const useGoals = (selectedDate?: string) => {
     completed: 0,
     percentage: 0,
   });
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const clearSyncError = useCallback(() => setSyncError(null), []);
 
   const currentDate = selectedDate || getTodayString();
   const { user } = useSupabaseAuth();
@@ -129,8 +137,12 @@ export const useGoals = (selectedDate?: string) => {
 
   // Prevent setting state after unmount (StrictMode dev cycle, navigation, etc.)
   const mountedRef = useRef(false);
-  // Used to ignore stale async mutation completions when users tap quickly.
-  const mutationSeqRef = useRef(new Map<string, number>());
+
+  const pendingQueue = useRef<QueuedMutation[]>([]);
+  const pendingGoalIds = useRef(new Set<string>());
+  const isFlushing = useRef(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushQueueRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Load goals with their completion status for the selected date
   const loadGoals = useCallback(
@@ -197,10 +209,32 @@ export const useGoals = (selectedDate?: string) => {
 
         if (!mountedRef.current) return;
 
-        setGoals(nextGoals);
-        setWeeklyGoals(nextWeeklyGoals);
+        const mergeGoals = (
+          prev: GoalWithStatus[],
+          next: GoalWithStatus[]
+        ): GoalWithStatus[] => {
+          if (pendingGoalIds.current.size === 0) return next;
+          const serverMap = new Map(next.map((g) => [g.id, g]));
+          const prevIds = new Set(prev.map((g) => g.id));
+          const merged = prev.map((g) =>
+            pendingGoalIds.current.has(g.id) ? g : (serverMap.get(g.id) ?? g)
+          );
+          const added = next.filter(
+            (g) => !prevIds.has(g.id) && !pendingGoalIds.current.has(g.id)
+          );
+          return [...merged, ...added];
+        };
+
+        setGoals((prev) => mergeGoals(prev, nextGoals));
+        setWeeklyGoals((prev) => mergeGoals(prev, nextWeeklyGoals));
         setInactiveGoals(nextInactiveGoals);
-        setGroupGoals(nextGroupGoals);
+        setGroupGoals((prev) => {
+          if (pendingGoalIds.current.size === 0) return nextGroupGoals;
+          const serverMap = new Map(nextGroupGoals.map((g) => [g.id, g]));
+          return prev.map((g) =>
+            pendingGoalIds.current.has(g.id) ? g : (serverMap.get(g.id) ?? g)
+          );
+        });
         setHistoricalGroupGoals(nextHistoricalGroupGoals);
         setCompletionStats(
           dto.completionStats || { total: 0, completed: 0, percentage: 0 }
@@ -233,6 +267,97 @@ export const useGoals = (selectedDate?: string) => {
       mountedRef.current = false;
     };
   }, [loadGoals]);
+
+  const flushQueue = useCallback(async () => {
+    if (isFlushing.current || pendingQueue.current.length === 0) return;
+    isFlushing.current = true;
+
+    const batch = [...pendingQueue.current];
+    pendingQueue.current = [];
+
+    const storageService = SupabaseGoalsService.getInstance();
+
+    for (const mutation of batch) {
+      const execute = async () => {
+        switch (mutation.type) {
+          case "toggleGoal":
+            if (mutation.isWeekly) {
+              await storageService.toggleWeeklyGoal(mutation.goalId, mutation.date);
+            } else {
+              await storageService.toggleGoalCompletion(mutation.goalId, mutation.date);
+            }
+            break;
+          case "toggleGoalStep":
+            if (mutation.isWeekly) {
+              await storageService.toggleWeeklyGoalStep(mutation.goalId, mutation.stepIndex, mutation.date);
+            } else {
+              await storageService.toggleGoalStep(mutation.goalId, mutation.stepIndex, mutation.date);
+            }
+            break;
+          case "incrementGoalStep":
+            if (mutation.isWeekly) {
+              await storageService.incrementWeeklyGoalStep(mutation.goalId, mutation.date);
+            } else {
+              await storageService.incrementGoalStep(mutation.goalId, mutation.date);
+            }
+            break;
+          case "toggleGroupGoal": {
+            const res = await fetch(`/api/group-goals/${mutation.goalId}/toggle`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ date: mutation.date }),
+            });
+            if (!res.ok) throw new Error("Failed to toggle group goal");
+            break;
+          }
+        }
+      };
+
+      try {
+        await execute();
+      } catch {
+        try {
+          await new Promise((r) => setTimeout(r, 1000));
+          await execute();
+        } catch {
+          if (!mountedRef.current) continue;
+          if (mutation.type === "toggleGroupGoal") {
+            setGroupGoals((prev) =>
+              prev.map((g) => (g.id === mutation.goalId ? mutation.previousState : g))
+            );
+          } else {
+            (mutation.isWeekly ? setWeeklyGoals : setGoals)((prev) =>
+              prev.map((g) => (g.id === mutation.goalId ? mutation.previousState : g))
+            );
+          }
+          setSyncError(`Couldn't save "${mutation.previousState.title}" — tap to retry`);
+        }
+      } finally {
+        pendingGoalIds.current.delete(mutation.goalId);
+      }
+    }
+
+    isFlushing.current = false;
+
+    if (!mountedRef.current) return;
+
+    if (pendingQueue.current.length > 0) {
+      scheduleFlush();
+    } else {
+      await loadGoals({ showLoader: false });
+    }
+  }, [loadGoals]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const scheduleFlush = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      void flushQueueRef.current();
+    }, 300);
+  }, []);
+
+  useEffect(() => {
+    flushQueueRef.current = flushQueue;
+  }, [flushQueue]);
 
   // Add a new goal
   const addGoal = useCallback(
@@ -303,35 +428,19 @@ export const useGoals = (selectedDate?: string) => {
       );
       setError(null);
 
-      const seq = (mutationSeqRef.current.get(goalId) ?? 0) + 1;
-      mutationSeqRef.current.set(goalId, seq);
-
-      void (async () => {
-        try {
-          const storageService = SupabaseGoalsService.getInstance();
-          if (isWeekly) {
-            await storageService.toggleWeeklyGoal(goalId, currentDate);
-          } else {
-            await storageService.toggleGoalCompletion(goalId, currentDate);
-          }
-          // Silent re-sync to ensure server truth (no list loader).
-          await loadGoals({ showLoader: false });
-        } catch (err) {
-          // Ignore stale completions if the user has already toggled again.
-          if (mutationSeqRef.current.get(goalId) !== seq) return;
-
-          // Revert optimistic update
-          (isWeekly ? setWeeklyGoals : setGoals)((prev) =>
-            prev.map((g) => (g.id === goalId ? goal : g))
-          );
-          setError("Failed to toggle goal completion");
-          console.error("Error toggling goal:", err);
-        }
-      })();
+      pendingGoalIds.current.add(goalId);
+      pendingQueue.current.push({
+        goalId,
+        type: "toggleGoal",
+        isWeekly,
+        date: currentDate,
+        previousState: goal,
+      });
+      scheduleFlush();
 
       return nextCompleted;
     },
-    [currentDate, loadGoals, goals, weeklyGoals]
+    [currentDate, goals, weeklyGoals, scheduleFlush]
   );
 
   // Toggle individual step for multi-step goals
@@ -366,36 +475,20 @@ export const useGoals = (selectedDate?: string) => {
       );
       setError(null);
 
-      const seqKey = `${goalId}:step:${stepIndex}`;
-      const seq = (mutationSeqRef.current.get(seqKey) ?? 0) + 1;
-      mutationSeqRef.current.set(seqKey, seq);
-
-      void (async () => {
-        try {
-          const storageService = SupabaseGoalsService.getInstance();
-          if (isWeekly) {
-            await storageService.toggleWeeklyGoalStep(
-              goalId,
-              stepIndex,
-              currentDate
-            );
-          } else {
-            await storageService.toggleGoalStep(goalId, stepIndex, currentDate);
-          }
-          await loadGoals({ showLoader: false });
-        } catch (err) {
-          if (mutationSeqRef.current.get(seqKey) !== seq) return;
-          (isWeekly ? setWeeklyGoals : setGoals)((prev) =>
-            prev.map((g) => (g.id === goalId ? goal : g))
-          );
-          setError("Failed to toggle goal step");
-          console.error("Error toggling goal step:", err);
-        }
-      })();
+      pendingGoalIds.current.add(goalId);
+      pendingQueue.current.push({
+        goalId,
+        type: "toggleGoalStep",
+        isWeekly,
+        date: currentDate,
+        stepIndex,
+        previousState: goal,
+      });
+      scheduleFlush();
 
       return !wasCompleted;
     },
-    [currentDate, loadGoals, goals, weeklyGoals]
+    [currentDate, goals, weeklyGoals, scheduleFlush]
   );
 
   // Increment step completion for multi-step goals
@@ -471,32 +564,19 @@ export const useGoals = (selectedDate?: string) => {
       );
       setError(null);
 
-      const seqKey = `${goalId}:inc`;
-      const seq = (mutationSeqRef.current.get(seqKey) ?? 0) + 1;
-      mutationSeqRef.current.set(seqKey, seq);
-
-      void (async () => {
-        try {
-          const storageService = SupabaseGoalsService.getInstance();
-          if (isWeekly) {
-            await storageService.incrementWeeklyGoalStep(goalId, currentDate);
-          } else {
-            await storageService.incrementGoalStep(goalId, currentDate);
-          }
-          await loadGoals({ showLoader: false });
-        } catch (err) {
-          if (mutationSeqRef.current.get(seqKey) !== seq) return;
-          (isWeekly ? setWeeklyGoals : setGoals)((prev) =>
-            prev.map((g) => (g.id === goalId ? goal : g))
-          );
-          setError("Failed to increment goal step");
-          console.error("Error incrementing goal step:", err);
-        }
-      })();
+      pendingGoalIds.current.add(goalId);
+      pendingQueue.current.push({
+        goalId,
+        type: "incrementGoalStep",
+        isWeekly,
+        date: currentDate,
+        previousState: goal,
+      });
+      scheduleFlush();
 
       return true;
     },
-    [currentDate, loadGoals, goals, weeklyGoals]
+    [currentDate, goals, weeklyGoals, scheduleFlush]
   );
 
   // Update an existing goal
@@ -589,24 +669,30 @@ export const useGoals = (selectedDate?: string) => {
   // Toggle group goal completion
   const toggleGroupGoal = useCallback(
     async (groupGoalId: string): Promise<void> => {
-      try {
-        const res = await fetch(`/api/group-goals/${groupGoalId}/toggle`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date: currentDate }),
-        });
+      const goal = groupGoals.find((g) => g.id === groupGoalId);
+      if (!goal) return;
 
-        if (!res.ok) {
-          throw new Error("Failed to toggle group goal");
-        }
+      const nextGoal: GroupGoalWithStatus = {
+        ...goal,
+        selfCompleted: !goal.selfCompleted,
+        membersCompleted: goal.selfCompleted
+          ? goal.membersCompleted - 1
+          : goal.membersCompleted + 1,
+      };
+      setGroupGoals((prev) =>
+        prev.map((g) => (g.id === groupGoalId ? nextGoal : g))
+      );
 
-        await loadGoals({ showLoader: false });
-      } catch (err) {
-        console.error("Error toggling group goal:", err);
-        setError("Failed to toggle group goal");
-      }
+      pendingGoalIds.current.add(groupGoalId);
+      pendingQueue.current.push({
+        goalId: groupGoalId,
+        type: "toggleGroupGoal",
+        date: currentDate,
+        previousState: goal,
+      });
+      scheduleFlush();
     },
-    [currentDate, loadGoals]
+    [currentDate, groupGoals, scheduleFlush]
   );
 
   return {
@@ -617,6 +703,8 @@ export const useGoals = (selectedDate?: string) => {
     historicalGroupGoals,
     loading,
     error,
+    syncError,
+    clearSyncError,
     addGoal,
     toggleGoal,
     toggleGoalStep,
